@@ -7,144 +7,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Organization {
-  id         Int       @id @default(autoincrement())
-  name       String    @db.VarChar(255)
-  address    String
-  contact    String    @db.VarChar(20)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  deletedAt  DateTime?
-
-  branches   Branch[]
-  
-  @@index([name], map: "idx_org_name")
-}
-
-model Branch {
-  id              Int             @id @default(autoincrement())
-  name            String          @db.VarChar(255)
-  organizationId  Int
-  address         String
-  contact         String          @db.VarChar(20)
-  status          BranchStatus    @default(active)
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  deletedAt       DateTime?
-
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  users          User[]
-  patients       Patient[]
-  expenses       Expense[]
-  salaries       Salary[]
-  inventoryItems BranchInventory[]
-  inventoryOrders InventoryOrder[]
-  logs           Log[]
-
-  @@map("Branches")
-}
-
 enum BranchStatus {
   active
   inactive
 }
 
-model User {
-  id              Int       @id @default(autoincrement())
-  name            String    @db.VarChar(255)
-  contactNo       String    @unique @db.VarChar(20)
-  identityNo      String    @unique @db.VarChar(50)
-  avatar          String?
-  password        String    @db.VarChar(255)
-  email           String    @unique @db.VarChar(255)
-  role            UserRole
-  branchId        Int?
-  organizationId  Int
-  identityImage   String?
-  isActive        Boolean   @default(true)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  deletedAt       DateTime?
-
-  branch          Branch?    @relation(fields: [branchId], references: [id])
-  createdPatients Patient[]  @relation("created_by")
-  updatedPatients Patient[]  @relation("updated_by")
-  appointments    Appointment[] @relation("doctor_id")
-  receivedOrders  InventoryOrder[]
-  salaries        Salary[]
-  logs            Log[]
-
-  @@map("Users")
-}
-
-enum UserRole {
+enum Role {
   doctor
   receptionist
   branch_admin
   organization_admin
 }
 
-model Patient {
-  id            Int       @id @default(autoincrement())
-  name          String    @db.VarChar(255)
-  contactNumber String?   @db.VarChar(20)
-  idCardNo      String?   @unique @db.VarChar(50)
-  email         String?
-  dateOfBirth   DateTime?
-  address       String?
-  medicalHistory String?
-  allergies     String?
-  branchId      Int
-  patientType   PatientType @default(walk_in)
-  createdBy     Int
-  updatedBy     Int
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  deletedAt     DateTime?
-
-  branch      Branch    @relation(fields: [branchId], references: [id])
-  createdByUser User    @relation("created_by", fields: [createdBy], references: [id])
-  updatedByUser User    @relation("updated_by", fields: [updatedBy], references: [id])
-
-  appointments Appointment[]
-  treatments   PatientTreatment[]
-  bills        PatientBill[]
-
-  @@index([contactNumber], map: "idx_patient_phone")
-  @@index([dateOfBirth], map: "idx_patient_dob")
-
-  @@map("Patients")
-}
-
 enum PatientType {
   walk_in
   regular
   appointed
-}
-
-model Appointment {
-  id              Int       @id @default(autoincrement())
-  patientId       Int
-  doctorId        Int?
-  receptionistId  Int?
-  appointmentDate DateTime
-  appointmentTime DateTime?
-  type            AppointmentType @default(scheduled)
-  status          AppointmentStatus @default(scheduled)
-  isFinal         Boolean   @default(true)
-  treatmentPlan   String?
-  createdBy       Int
-  updatedBy       Int
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  deletedAt       DateTime?
-
-  patient        Patient @relation(fields: [patientId], references: [id])
-  doctor         User?   @relation("doctor_id", fields: [doctorId], references: [id])
-  
-  @@index([appointmentDate], map: "idx_appointment_date")
-
-  @@map("Appointments")
 }
 
 enum AppointmentType {
@@ -161,76 +39,10 @@ enum AppointmentStatus {
   rescheduled
 }
 
-model Treatment {
-  id          Int       @id @default(autoincrement())
-  treatmentName String  @db.VarChar(255)
-  description String?
-  baseCost    Decimal(10, 2)
-  duration    Int
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
-
-  patientTreatments PatientTreatment[]
-
-  @@map("Treatments")
-}
-
-model PatientTreatment {
-  id            Int       @id @default(autoincrement())
-  patientId     Int
-  treatmentId   Int
-  appointmentId Int
-  sessionNumber Int       @default(1)
-  treatmentDate DateTime
-  actualCost    Decimal(10, 2)
-  doctorId      Int
-  status        TreatmentStatus @default(pending)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  deletedAt     DateTime?
-
-  patient      Patient   @relation(fields: [patientId], references: [id])
-  treatment    Treatment @relation(fields: [treatmentId], references: [id])
-
-  @@map("Patient_Treatments")
-}
-
 enum TreatmentStatus {
   pending
   in_progress
   completed
-}
-
-model PatientBill {
-  id             Int       @id @default(autoincrement())
-  patientId      Int
-  treatmentId    Int
-  totalAmount    Decimal(10, 2)
-  paidAmount     Decimal(10, 2) @default(0)
-  status         BillStatus @default(pending)
-
-  patient        Patient @relation(fields: [patientId], references: [id])
-
-  @@map("Patient_Bills")
-}
-
-enum BillStatus {
-  paid
-  partially_paid
-  pending
-}
-
-model Payment {
-  id            Int       @id @default(autoincrement())
-  billId        Int
-  amount        Decimal(10, 2)
-  paymentDate   DateTime @default(now())
-  paymentMethod PaymentMethod
-  status        PaymentStatus @default(pending)
-  receivedBy    Int
-
-  @@map("Payments")
 }
 
 enum PaymentMethod {
@@ -244,20 +56,10 @@ enum PaymentStatus {
   pending
 }
 
-model Expense {
-  id              Int       @id @default(autoincrement())
-  branchId        Int
-  organizationId  Int
-  expenseName     String
-  expenseType     ExpenseType
-  amount          Decimal(10, 2)
-  date            DateTime
-  description     String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  deletedAt       DateTime?
-
-  @@map("Expenses")
+enum BillStatus {
+  paid
+  partially_paid
+  pending
 }
 
 enum ExpenseType {
@@ -268,24 +70,261 @@ enum ExpenseType {
   other
 }
 
-model Salary {
-  id           Int       @id @default(autoincrement())
-  userId       Int
-  branchId     Int
-  salaryMonth  DateTime
-  amount       Decimal(10, 2)
-  status       SalaryStatus @default(unpaid)
-
-  @@map("Salaries")
-}
-
 enum SalaryStatus {
   paid
   unpaid
 }
 
+model Organization {
+  id          Int        @id @default(autoincrement())
+  name        String     @db.VarChar(255)
+  address     String     @db.Text
+  contact     String     @db.VarChar(20)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @default(now()) @updatedAt @map("updated_at")
+  deletedAt   DateTime?  @map("deleted_at")
+  branches    Branch[]
+  users       User[]
+  expenses    Expense[]
+  salaries    Salary[]
+  logs        Log[]
+  
+  @@index([name], name: "idx_org_name")
+}
+
+model Branch {
+  id             Int       @id @default(autoincrement())
+  name           String    @db.VarChar(255)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId Int       @map("organization_id")
+  address        String    @db.Text
+  contact        String    @db.VarChar(20)
+  status         BranchStatus @default(active)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+  users          User[]
+  patients       Patient[]
+  expenses       Expense[]
+  salaries       Salary[]
+  inventories    BranchInventory[]
+  orders         InventoryOrder[]
+  logs           Log[]
+}
+
+model User {
+  id             Int       @id @default(autoincrement())
+  name           String    @db.VarChar(255)
+  contactNo      String    @unique @map("contact_no") @db.VarChar(20)
+  identityNo     String    @unique @map("identity_no") @db.VarChar(50)
+  avatar         String?   @db.VarChar(255)
+  password       String    @db.VarChar(255)
+  email          String    @unique @db.VarChar(255)
+  role           Role
+  branch         Branch?   @relation(fields: [branchId], references: [id])
+  branchId       Int?      @map("branch_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId Int       @map("organization_id")
+  identityImage  String?   @map("identity_image") @db.VarChar(255)
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+  
+  createdPatients Patient[] @relation("PatientCreatedBy")
+  updatedPatients Patient[] @relation("PatientUpdatedBy")
+  doctorAppointments Appointment[]
+  receptionistAppointments Appointment[]
+  treatments     PatientTreatment[]
+  payments       Payment[]
+  salaries       Salary[]
+  orders         InventoryOrder[]
+  logs           Log[]
+}
+
+model Patient {
+  id             Int       @id @default(autoincrement())
+  name           String    @db.VarChar(255)
+  contactNumber  String?   @map("contact_number") @db.VarChar(20)
+  idCardNo       String?   @unique @map("id_card_no") @db.VarChar(50)
+  email          String?   @db.VarChar(255)
+  dateOfBirth    DateTime? @map("date_of_birth")
+  address        String?   @db.Text
+  medicalHistory String?   @map("medical_history") @db.Text
+  allergies      String?   @db.Text
+  branch         Branch    @relation(fields: [branchId], references: [id])
+  branchId       Int       @map("branch_id")
+  patientType    PatientType @default(walk_in) @map("patient_type")
+  createdBy      User      @relation(name: "PatientCreatedBy", fields: [createdById], references: [id])
+  createdById    Int       @map("created_by")
+  updatedBy      User      @relation(name: "PatientUpdatedBy", fields: [updatedById], references: [id])
+  updatedById    Int       @map("updated_by")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+  
+  appointments   Appointment[]
+  treatments     PatientTreatment[]
+  bills          PatientBill[]
+  
+  @@index([contactNumber], name: "idx_patient_phone")
+  @@index([dateOfBirth], name: "idx_patient_dob")
+}
+
+model Appointment {
+  id                   Int               @id @default(autoincrement())
+  patient              Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  patientId            Int               @map("patient_id")
+  doctor               User?             @relation(fields: [doctorId], references: [id])
+  doctorId             Int?              @map("doctor_id")
+  receptionist         User?             @relation(fields: [receptionistId], references: [id])
+  receptionistId       Int?              @map("receptionist_id")
+  appointmentDate      DateTime          @map("appointment_date")
+  appointmentTime      DateTime?         @map("appointment_time")
+  type                 AppointmentType   @default(scheduled)
+  status               AppointmentStatus @default(scheduled)
+  isFinalAppointment   Boolean           @default(true) @map("is_final_appointment")
+  treatmentPlan        String?           @db.Text
+  createdBy            User              @relation(fields: [createdById], references: [id])
+  createdById          Int               @map("created_by")
+  updatedBy            User              @relation(fields: [updatedById], references: [id])
+  updatedById          Int               @map("updated_by")
+  createdAt            DateTime          @default(now()) @map("created_at")
+  updatedAt            DateTime          @default(now()) @updatedAt @map("updated_at")
+  deletedAt            DateTime?         @map("deleted_at")
+  
+  treatments           PatientTreatment[]
+  
+  @@index([appointmentDate], name: "idx_appointment_date")
+}
+
+model Treatment {
+  id            Int       @id @default(autoincrement())
+  treatmentName String    @map("treatment_name") @db.VarChar(255)
+  description   String?   @db.Text
+  baseCost      Float     @map("base_cost") @db.Decimal(10,2)
+  duration      Int
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+  
+  patientTreatments PatientTreatment[]
+}
+
+model PatientTreatment {
+  id             Int             @id @default(autoincrement())
+  patient        Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  patientId      Int             @map("patient_id")
+  treatment      Treatment       @relation(fields: [treatmentId], references: [id])
+  treatmentId    Int             @map("treatment_id")
+  appointment    Appointment     @relation(fields: [appointmentId], references: [id])
+  appointmentId  Int             @map("appointment_id")
+  sessionNumber  Int             @default(1) @map("session_number")
+  treatmentDate  DateTime        @map("treatment_date")
+  actualCost     Float           @map("actual_cost") @db.Decimal(10,2)
+  doctor         User            @relation(fields: [doctorId], references: [id])
+  doctorId       Int             @map("doctor_id")
+  status         TreatmentStatus @default(pending)
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at")
+  deletedAt      DateTime?       @map("deleted_at")
+}
+
+model PatientBill {
+  id             Int             @id @default(autoincrement())
+  patient        Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  patientId      Int             @map("patient_id")
+  treatment      Treatment       @relation(fields: [treatmentId], references: [id])
+  treatmentId    Int             @map("treatment_id")
+  totalAmount    Float           @map("total_amount") @db.Decimal(10,2)
+  paidAmount     Float           @map("paid_amount") @default(0) @db.Decimal(10,2)
+  remainingAmount Float          @map("remaining_amount") @db.Decimal(10,2)
+  status         BillStatus      @default(pending)
+  
+  payments       Payment[]
+}
+
+model Payment {
+  id             Int             @id @default(autoincrement())
+  bill           PatientBill     @relation(fields: [billId], references: [id])
+  billId         Int             @map("bill_id")
+  amount         Float           @db.Decimal(10,2)
+  paymentDate    DateTime        @default(now()) @map("payment_date")
+  paymentMethod  PaymentMethod   @map("payment_method")
+  status         PaymentStatus   @default(pending)
+  receivedBy     User            @relation(fields: [receivedById], references: [id])
+  receivedById   Int             @map("received_by")
+  patient        Patient         @relation(fields: [patientId], references: [id])
+  patientId      Int             @map("patient_id")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at")
+}
+
+model Expense {
+  id             Int             @id @default(autoincrement())
+  branch         Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  branchId       Int             @map("branch_id")
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  organizationId Int             @map("organization_id")
+  expenseName    String          @map("expense_name") @db.VarChar(255)
+  expenseType    ExpenseType     
+  amount         Float           @db.Decimal(10,2)
+  date           DateTime        
+  description    String?         @db.Text
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at")
+  deletedAt      DateTime?       @map("deleted_at")
+}
+
+model Salary {
+  id             Int             @id @default(autoincrement())
+  user           User            @relation(fields: [userId], references: [id])
+  userId         Int             @map("user_id")
+  branch         Branch          @relation(fields: [branchId], references: [id])
+  branchId       Int             @map("branch_id")
+  salaryMonth    DateTime        @map("salary_month")
+  amount         Float           @db.Decimal(10,2)
+  status         SalaryStatus    @default(unpaid)
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at")
+  deletedAt      DateTime?       @map("deleted_at")
+}
+
+model BranchInventory {
+  id             Int             @id @default(autoincrement())
+  branch         Branch          @relation(fields: [branchId], references: [id])
+  branchId       Int             @map("branch_id")
+  itemName       String          @map("item_name") @db.VarChar(255)
+  currentQuantity Int            @default(0) @map("current_quantity")
+  reorderLevel   Int?            @default(10) @map("reorder_level")
+  costPerUnit    Float?          @map("cost_per_unit") @db.Decimal(10,2)
+  lastUpdatedAt  DateTime        @default(now()) @updatedAt @map("last_updated_at")
+  deletedAt      DateTime?       @map("deleted_at")
+}
+
+model InventoryOrder {
+  id             Int             @id @default(autoincrement())
+  branch         Branch          @relation(fields: [branchId], references: [id])
+  branchId       Int             @map("branch_id")
+  itemName       String          @map("item_name") @db.VarChar(255)
+  quantityOrdered Int            @map("quantity_ordered")
+  costPerUnit    Float           @map("cost_per_unit") @db.Decimal(10,2)
+  totalCost      Float           @map("total_cost") @db.Decimal(10,2)
+  supplier       String?         @db.VarChar(255)
+  receiptFilePath String?        @map("receipt_file_path") @db.VarChar(500)
+  orderedAt      DateTime        @default(now()) @map("ordered_at")
+  receivedBy     User            @relation(fields: [receivedById], references: [id])
+  receivedById   Int             @map("received_by")
+}
+
 model Log {
-  id       Int @id @default(autoincrement())
-  activity String
-  createdAt DateTime @default(now())
+  id             Int             @id @default(autoincrement())
+  user           User?           @relation(fields: [userId], references: [id])
+  userId         Int?            @map("user_id")
+  branch         Branch          @relation(fields: [branchId], references: [id])
+  branchId       Int             @map("branch_id")
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  organizationId Int             @map("organization_id")
+  activity       String          @db.Text
+  createdAt      DateTime        @default(now()) @map("created_at")
 }
