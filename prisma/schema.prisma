@@ -7,9 +7,285 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Organization {
+  id         Int       @id @default(autoincrement())
+  name       String    @db.VarChar(255)
+  address    String
+  contact    String    @db.VarChar(20)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  branches   Branch[]
+  
+  @@index([name], map: "idx_org_name")
+}
+
+model Branch {
+  id              Int             @id @default(autoincrement())
+  name            String          @db.VarChar(255)
+  organizationId  Int
+  address         String
+  contact         String          @db.VarChar(20)
+  status          BranchStatus    @default(active)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  users          User[]
+  patients       Patient[]
+  expenses       Expense[]
+  salaries       Salary[]
+  inventoryItems BranchInventory[]
+  inventoryOrders InventoryOrder[]
+  logs           Log[]
+
+  @@map("Branches")
+}
+
+enum BranchStatus {
+  active
+  inactive
+}
+
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
+  id              Int       @id @default(autoincrement())
+  name            String    @db.VarChar(255)
+  contactNo       String    @unique @db.VarChar(20)
+  identityNo      String    @unique @db.VarChar(50)
+  avatar          String?
+  password        String    @db.VarChar(255)
+  email           String    @unique @db.VarChar(255)
+  role            UserRole
+  branchId        Int?
+  organizationId  Int
+  identityImage   String?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  branch          Branch?    @relation(fields: [branchId], references: [id])
+  createdPatients Patient[]  @relation("created_by")
+  updatedPatients Patient[]  @relation("updated_by")
+  appointments    Appointment[] @relation("doctor_id")
+  receivedOrders  InventoryOrder[]
+  salaries        Salary[]
+  logs            Log[]
+
+  @@map("Users")
+}
+
+enum UserRole {
+  doctor
+  receptionist
+  branch_admin
+  organization_admin
+}
+
+model Patient {
+  id            Int       @id @default(autoincrement())
+  name          String    @db.VarChar(255)
+  contactNumber String?   @db.VarChar(20)
+  idCardNo      String?   @unique @db.VarChar(50)
+  email         String?
+  dateOfBirth   DateTime?
+  address       String?
+  medicalHistory String?
+  allergies     String?
+  branchId      Int
+  patientType   PatientType @default(walk_in)
+  createdBy     Int
+  updatedBy     Int
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  branch      Branch    @relation(fields: [branchId], references: [id])
+  createdByUser User    @relation("created_by", fields: [createdBy], references: [id])
+  updatedByUser User    @relation("updated_by", fields: [updatedBy], references: [id])
+
+  appointments Appointment[]
+  treatments   PatientTreatment[]
+  bills        PatientBill[]
+
+  @@index([contactNumber], map: "idx_patient_phone")
+  @@index([dateOfBirth], map: "idx_patient_dob")
+
+  @@map("Patients")
+}
+
+enum PatientType {
+  walk_in
+  regular
+  appointed
+}
+
+model Appointment {
+  id              Int       @id @default(autoincrement())
+  patientId       Int
+  doctorId        Int?
+  receptionistId  Int?
+  appointmentDate DateTime
+  appointmentTime DateTime?
+  type            AppointmentType @default(scheduled)
+  status          AppointmentStatus @default(scheduled)
+  isFinal         Boolean   @default(true)
+  treatmentPlan   String?
+  createdBy       Int
+  updatedBy       Int
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  patient        Patient @relation(fields: [patientId], references: [id])
+  doctor         User?   @relation("doctor_id", fields: [doctorId], references: [id])
+  
+  @@index([appointmentDate], map: "idx_appointment_date")
+
+  @@map("Appointments")
+}
+
+enum AppointmentType {
+  scheduled
+  walk_in
+}
+
+enum AppointmentStatus {
+  scheduled
+  expired
+  waiting
+  completed
+  cancelled
+  rescheduled
+}
+
+model Treatment {
+  id          Int       @id @default(autoincrement())
+  treatmentName String  @db.VarChar(255)
+  description String?
+  baseCost    Decimal(10, 2)
+  duration    Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  patientTreatments PatientTreatment[]
+
+  @@map("Treatments")
+}
+
+model PatientTreatment {
+  id            Int       @id @default(autoincrement())
+  patientId     Int
+  treatmentId   Int
+  appointmentId Int
+  sessionNumber Int       @default(1)
+  treatmentDate DateTime
+  actualCost    Decimal(10, 2)
+  doctorId      Int
+  status        TreatmentStatus @default(pending)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  patient      Patient   @relation(fields: [patientId], references: [id])
+  treatment    Treatment @relation(fields: [treatmentId], references: [id])
+
+  @@map("Patient_Treatments")
+}
+
+enum TreatmentStatus {
+  pending
+  in_progress
+  completed
+}
+
+model PatientBill {
+  id             Int       @id @default(autoincrement())
+  patientId      Int
+  treatmentId    Int
+  totalAmount    Decimal(10, 2)
+  paidAmount     Decimal(10, 2) @default(0)
+  status         BillStatus @default(pending)
+
+  patient        Patient @relation(fields: [patientId], references: [id])
+
+  @@map("Patient_Bills")
+}
+
+enum BillStatus {
+  paid
+  partially_paid
+  pending
+}
+
+model Payment {
+  id            Int       @id @default(autoincrement())
+  billId        Int
+  amount        Decimal(10, 2)
+  paymentDate   DateTime @default(now())
+  paymentMethod PaymentMethod
+  status        PaymentStatus @default(pending)
+  receivedBy    Int
+
+  @@map("Payments")
+}
+
+enum PaymentMethod {
+  cash
+  card
+  online
+}
+
+enum PaymentStatus {
+  paid
+  pending
+}
+
+model Expense {
+  id              Int       @id @default(autoincrement())
+  branchId        Int
+  organizationId  Int
+  expenseName     String
+  expenseType     ExpenseType
+  amount          Decimal(10, 2)
+  date            DateTime
+  description     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  @@map("Expenses")
+}
+
+enum ExpenseType {
+  rent
+  salaries
+  utilities
+  inventory
+  other
+}
+
+model Salary {
+  id           Int       @id @default(autoincrement())
+  userId       Int
+  branchId     Int
+  salaryMonth  DateTime
+  amount       Decimal(10, 2)
+  status       SalaryStatus @default(unpaid)
+
+  @@map("Salaries")
+}
+
+enum SalaryStatus {
+  paid
+  unpaid
+}
+
+model Log {
+  id       Int @id @default(autoincrement())
+  activity String
   createdAt DateTime @default(now())
 }
