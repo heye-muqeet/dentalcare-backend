@@ -17,12 +17,12 @@ exports.Prisma = Prisma
 exports.$Enums = {}
 
 /**
- * Prisma Client JS version: 6.4.1
- * Query Engine version: a9055b89e58b4b5bfb59600785423b1db3d0e75d
+ * Prisma Client JS version: 6.5.0
+ * Query Engine version: 173f8d54f8d52e692c7e27e72a88314ec7aeff60
  */
 Prisma.prismaVersion = {
-  client: "6.4.1",
-  engine: "a9055b89e58b4b5bfb59600785423b1db3d0e75d"
+  client: "6.5.0",
+  engine: "173f8d54f8d52e692c7e27e72a88314ec7aeff60"
 }
 
 Prisma.PrismaClientKnownRequestError = () => {
@@ -116,6 +116,14 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
   RepeatableRead: 'RepeatableRead',
   Serializable: 'Serializable'
 });
+
+exports.Prisma.TokenScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  refreshToken: 'refreshToken',
+  accessToken: 'accessToken',
+  expiresAt: 'expiresAt'
+};
 
 exports.Prisma.OrganizationScalarFieldEnum = {
   id: 'id',
@@ -311,6 +319,12 @@ exports.Prisma.SortOrder = {
   desc: 'desc'
 };
 
+exports.Prisma.TokenOrderByRelevanceFieldEnum = {
+  id: 'id',
+  refreshToken: 'refreshToken',
+  accessToken: 'accessToken'
+};
+
 exports.Prisma.NullsOrder = {
   first: 'first',
   last: 'last'
@@ -444,6 +458,7 @@ exports.SalaryStatus = exports.$Enums.SalaryStatus = {
 };
 
 exports.Prisma.ModelName = {
+  Token: 'Token',
   Organization: 'Organization',
   Branch: 'Branch',
   User: 'User',

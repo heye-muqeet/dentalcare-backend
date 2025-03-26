@@ -76,6 +76,17 @@ enum SalaryStatus {
   unpaid
 }
 
+model Token {
+  id           String   @id @default(uuid())
+  userId       Int      @unique
+  refreshToken String   @unique
+  accessToken  String   @unique
+  expiresAt    DateTime
+
+  //references
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 model Organization {
   id        Int       @id @default(autoincrement())
   name      String    @db.VarChar(255)
@@ -152,6 +163,7 @@ model User {
   salaries                 Salary[]
   orders                   InventoryOrder[]
   logs                     Log[]
+  Token                    Token?
 }
 
 model Patient {
