@@ -29,7 +29,7 @@ const generateRefreshToken = (userId) => {
 // Delete existing token
 const deleteToken = async (userId, deviceToken) => {
     try {
-        return await db.user_devices.deleteMany({
+        return await db.Token.deleteMany({
             where: {    
                 user_id: userId,
                 device_token: deviceToken,
