@@ -26,41 +26,18 @@ const generateRefreshToken = (userId) => {
     return jwt.sign({ userId }, REFRESH_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRY });
 };
 
-// Delete existing token
-const deleteToken = async (userId, deviceToken) => {
-    try {
-        return await db.Token.deleteMany({
-            where: {    
-                user_id: userId,
-                device_token: deviceToken,
-            },
-        });
-    } catch (error) {
-        console.error('Error deleting token:', error.message);
-        throw new Error(`Failed to delete token for user ${userId}`);
-    }
-};
-
 // Save tokens in the database
 const saveTokens = async ({
     userId,
     accessToken,
     refreshToken,
-    deviceToken,
-    deviceId,
-    deviceType,
 }) => {
     try {
-        // const expirySeconds = parseExpiryToSeconds(ACCESS_TOKEN_EXPIRY);
-
-        const token = await db.user_devices.create({
+        const token = await db.token.create({
             data: {
                 user_id: userId,
                 access_token: accessToken,
                 refresh_token: refreshToken,
-                device_token: deviceToken,
-                device_id: deviceId,
-                device_type: deviceType,
             },
         });
 
@@ -72,20 +49,12 @@ const saveTokens = async ({
 };
 
 // Generate tokens
-export const generateTokens = async ({ userId, deviceToken, deviceId, deviceType }) => {
+export const generateTokens = async ({ userId }) => {
     try {
-        const existingRecord = await db.user_devices.findFirst({
-            where: {
-                user_id: userId,
-                device_token: deviceToken,
-            },
-        });
-        if (existingRecord) await deleteToken(userId, deviceToken);
-
         const accessToken = generateAccessToken(userId);
         const refreshToken = generateRefreshToken(userId);
 
-        return await saveTokens({ userId, accessToken, refreshToken, deviceToken, deviceId, deviceType });
+        return await saveTokens({ userId, accessToken, refreshToken });
     } catch (error) {
         console.error('Error generating tokens:', error.message);
         throw new Error('Failed to generate tokens');
@@ -95,29 +64,28 @@ export const generateTokens = async ({ userId, deviceToken, deviceId, deviceType
 export const updateAccessToken = async ({ userId, accessToken }) => {
     try {
         // Find user device by current access token
-        const userDevice = await db.user_devices.findFirst({
+        const token = await db.token.findFirst({
             where: {
                 user_id: userId,
                 access_token: accessToken,
             },
         });
-        if (!userDevice) {
+        if (!token) {
             throw new Error('Invalid access token or user');
         }
         // Generate new access token
         const newAccessToken = generateAccessToken(userId);
 
-        const device = await db.user_devices.update({
+        const newToken = await db.user_devices.update({
             where: {
-                id: userDevice.id,
-                access_token: userDevice.access_token
+                id: token.id,
             },
             data: {
                 access_token: newAccessToken,
             },
         });
 
-        return device;
+        return newToken;
     } catch (error) {
         console.error('Access token update failed:', error.message);
         throw new Error('Token refresh failed: ' + error.message);

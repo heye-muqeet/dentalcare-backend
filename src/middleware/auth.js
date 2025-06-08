@@ -1,4 +1,4 @@
-import db from "@/lib/prisma";
+import db from "@/utils/prisma";
 import jwt from "jsonwebtoken";
 
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET;
@@ -27,20 +27,20 @@ const authMiddleware = async (req) => {
     }
 
     // Check if token exists in the database
-    const device = await db.user_devices.findFirst({
+    const isToken = await db.token.findFirst({
       where: { user_id: decoded.userId, access_token: token },
     });
 
-    if (!device) {
+    if (!isToken) {
       return { authenticated: false, message: "Unauthorized: Token not found in DB" };
     }
 
-    const user = await db.users.findFirst({
+    const user = await db.user.findFirst({
       where: { id: decoded.userId },
     });
     // console.log({ user, device })
 
-    return { authenticated: true, message: "Authorized", user, device };
+    return { authenticated: true, message: "Authorized", user, token };
   } catch (error) {
     if (error.name === "TokenExpiredError") {
       return { authenticated: false, message: "Unauthorized: Token expired" };
