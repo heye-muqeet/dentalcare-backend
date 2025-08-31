@@ -62,8 +62,9 @@ module.exports = {
       errors.push(Errors.AUTH.INVALID_PASSWORD);
     }
 
-    // Validate phone number
-    if (!validator.isMobilePhone(inputs.phone, 'any')) {
+    // Validate phone number - more flexible for international formats
+    const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+    if (!phoneRegex.test(inputs.phone.replace(/[\s\-\(\)]/g, ''))) {
       errors.push(Errors.AUTH.INVALID_PHONE);
     }
 

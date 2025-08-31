@@ -46,7 +46,7 @@ module.exports.routes = {
   'GET /api/users': 'UserController/find',
   'GET /api/users/doctors': 'UserController/getDoctors',
   'POST /api/users': 'UserController/create',
-  'PUT /api/users/:id': 'userController/update',
+  'PUT /api/users/:id': 'UserController/update',
   'DELETE /api/users/:id': 'UserController/destroy',
   'PUT /api/users/change-password': 'UserController/changePassword',
 
