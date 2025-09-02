@@ -1,3 +1,39 @@
+# Dental Care Backend (Sails.js)
+
+Production‑ready Sails.js API for the Dental Care platform. Provides JWT (cookie) auth, RBAC, and REST endpoints for users, patients, appointments, treatments, invoices, payments, expenses, media, reports, and dashboard metrics.
+
+## Quick Start
+```bash
+npm install
+npm run dev
+# http://localhost:1337
+```
+
+## Environment
+Set these variables (e.g. `.env`):
+- DATABASE_URL – MongoDB connection string
+- JWT_SECRET – JWT signing secret
+- CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
+- EMAIL_SERVICE, EMAIL_USER, EMAIL_PASS
+
+## Useful Scripts
+- dev: Nodemon lift (development)
+- start: Production lift
+
+## Documentation
+- Detailed backend docs: `./DOCUMENTATION.md`
+- Full project docs: `../DOCUMENTATION.md`
+- Postman collection: `DentalCare_API_Collection.json`
+- Expense API: `EXPENSE_API_DOCUMENTATION.md`
+
+## Notes
+- Cookies use `SameSite=None; Secure` → require HTTPS in production
+- CORS configured in `config/security.js` with `allowCredentials: true`
+
+---
+
+Original Sails template follows:
+
 # dental-backend
 
 a [Sails v1](https://sailsjs.com) application
