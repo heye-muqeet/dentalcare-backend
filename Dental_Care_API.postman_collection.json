@@ -1,0 +1,794 @@
+{
+  "info": {
+    "name": "Dental Care API",
+    "description": "Complete API collection for the Dental Care Management System",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"owner@example.com\",\n  \"password\": \"password123\",\n  \"name\": \"John Doe\",\n  \"phone\": \"+1234567890\",\n  \"organizationName\": \"Dental Care Clinic\",\n  \"organizationAddress\": \"123 Main St, City, State 12345\",\n  \"organizationPhone\": \"+1234567891\",\n  \"organizationEmail\": \"clinic@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Register a new organization owner with organization details"
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"owner@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login with email and password"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Extract token from cookie and set as environment variable",
+                  "const cookies = pm.response.headers.get('Set-Cookie');",
+                  "if (cookies) {",
+                  "    const tokenCookie = cookies.split(';').find(c => c.trim().startsWith('token='));",
+                  "    if (tokenCookie) {",
+                  "        const token = tokenCookie.split('=')[1];",
+                  "        pm.environment.set('authToken', token);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "profile"]
+            },
+            "description": "Get authenticated user profile with organization and location details"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Logout and clear authentication cookie"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Get Dashboard Data",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["dashboard"]
+            },
+            "description": "Get dashboard statistics (different data for doctors vs owners/receptionists)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users Management",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "List users in organization (Owner only)"
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dr. Jane Smith\",\n  \"email\": \"doctor@example.com\",\n  \"password\": \"password123\",\n  \"phone\": \"+1234567892\",\n  \"role\": \"doctor\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            },
+            "description": "Create a new user (Owner only)"
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dr. Jane Smith Updated\",\n  \"phone\": \"+1234567893\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/:userId",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", ":userId"],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "USER_ID_HERE"
+                }
+              ]
+            },
+            "description": "Update user details (Owner only)"
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/:userId",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", ":userId"],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "USER_ID_HERE"
+                }
+              ]
+            },
+            "description": "Delete user (Owner only)"
+          }
+        },
+        {
+          "name": "List Doctors",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/doctors",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "doctors"]
+            },
+            "description": "Get list of doctors in organization"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Patients Management",
+      "item": [
+        {
+          "name": "List Patients",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/patients?page=1&limit=10&search=",
+              "host": ["{{baseUrl}}"],
+              "path": ["patients"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "List patients with pagination and optional search"
+          }
+        },
+        {
+          "name": "Create Patient",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Patient\",\n  \"email\": \"patient@example.com\",\n  \"phone\": \"+1234567894\",\n  \"dateOfBirth\": \"1990-01-01\",\n  \"gender\": \"male\",\n  \"address\": \"456 Patient St, City, State 12345\",\n  \"emergencyContact\": {\n    \"name\": \"Emergency Contact\",\n    \"phone\": \"+1234567895\",\n    \"relationship\": \"spouse\"\n  },\n  \"medicalHistory\": \"No known allergies\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/patients",
+              "host": ["{{baseUrl}}"],
+              "path": ["patients"]
+            },
+            "description": "Create a new patient (Owner/Receptionist only)"
+          }
+        },
+        {
+          "name": "Get Patient Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/patients/:patientId/details",
+              "host": ["{{baseUrl}}"],
+              "path": ["patients", ":patientId", "details"],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Get detailed patient information"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Appointments",
+      "item": [
+        {
+          "name": "List Appointments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/appointments?date=&doctor=&status=&patient=",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointments"],
+              "query": [
+                {
+                  "key": "date",
+                  "value": ""
+                },
+                {
+                  "key": "doctor",
+                  "value": ""
+                },
+                {
+                  "key": "status",
+                  "value": ""
+                },
+                {
+                  "key": "patient",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "List appointments with optional filters"
+          }
+        },
+        {
+          "name": "Create Appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient\": \"PATIENT_ID_HERE\",\n  \"doctor\": \"DOCTOR_ID_HERE\",\n  \"date\": \"2024-01-15\",\n  \"time\": \"10:00\",\n  \"duration\": 60,\n  \"service\": \"SERVICE_ID_HERE\",\n  \"notes\": \"Regular checkup\",\n  \"status\": \"scheduled\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/appointments",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointments"]
+            },
+            "description": "Create a new appointment (Owner/Receptionist only)"
+          }
+        },
+        {
+          "name": "Get Available Slots",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/appointments/available-slots?doctor=DOCTOR_ID&date=2024-01-15",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointments", "available-slots"],
+              "query": [
+                {
+                  "key": "doctor",
+                  "value": "DOCTOR_ID"
+                },
+                {
+                  "key": "date",
+                  "value": "2024-01-15"
+                }
+              ]
+            },
+            "description": "Get available time slots for a doctor on a specific date"
+          }
+        },
+        {
+          "name": "Cancel Appointment",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/appointments/:appointmentId/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["appointments", ":appointmentId", "cancel"],
+              "variable": [
+                {
+                  "key": "appointmentId",
+                  "value": "APPOINTMENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Cancel an appointment"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Services",
+      "item": [
+        {
+          "name": "List Services",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/services",
+              "host": ["{{baseUrl}}"],
+              "path": ["services"]
+            },
+            "description": "Get list of dental services"
+          }
+        },
+        {
+          "name": "Create Service",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Teeth Cleaning\",\n  \"description\": \"Professional dental cleaning service\",\n  \"price\": 100,\n  \"duration\": 60,\n  \"category\": \"Preventive\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/services",
+              "host": ["{{baseUrl}}"],
+              "path": ["services"]
+            },
+            "description": "Create a new dental service (Owner/Receptionist only)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Treatments",
+      "item": [
+        {
+          "name": "List Treatments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/treatments",
+              "host": ["{{baseUrl}}"],
+              "path": ["treatments"]
+            },
+            "description": "Get list of treatments (filtered by user role)"
+          }
+        },
+        {
+          "name": "Create Treatment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient\": \"PATIENT_ID_HERE\",\n  \"appointment\": \"APPOINTMENT_ID_HERE\",\n  \"service\": \"SERVICE_ID_HERE\",\n  \"doctor\": \"DOCTOR_ID_HERE\",\n  \"notes\": \"Treatment completed successfully\",\n  \"status\": \"completed\",\n  \"cost\": 100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/treatments",
+              "host": ["{{baseUrl}}"],
+              "path": ["treatments"]
+            },
+            "description": "Create a new treatment record (Owner/Doctor only)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Invoices",
+      "item": [
+        {
+          "name": "List Invoices",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/invoices?status=&patient=&startDate=&endDate=",
+              "host": ["{{baseUrl}}"],
+              "path": ["invoices"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": ""
+                },
+                {
+                  "key": "patient",
+                  "value": ""
+                },
+                {
+                  "key": "startDate",
+                  "value": ""
+                },
+                {
+                  "key": "endDate",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "List invoices with optional filters (Owner/Receptionist only)"
+          }
+        },
+        {
+          "name": "Mark Invoice as Paid",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/invoices/:invoiceId/mark-paid",
+              "host": ["{{baseUrl}}"],
+              "path": ["invoices", ":invoiceId", "mark-paid"],
+              "variable": [
+                {
+                  "key": "invoiceId",
+                  "value": "INVOICE_ID_HERE"
+                }
+              ]
+            },
+            "description": "Mark an invoice as paid (Owner/Receptionist only)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Create Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invoice\": \"INVOICE_ID_HERE\",\n  \"patient\": \"PATIENT_ID_HERE\",\n  \"amount\": 100,\n  \"method\": \"cash\",\n  \"notes\": \"Payment received\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments"]
+            },
+            "description": "Record a new payment"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Expenses",
+      "item": [
+        {
+          "name": "List Expenses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/expenses?category=&startDate=&endDate=&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["expenses"],
+              "query": [
+                {
+                  "key": "category",
+                  "value": ""
+                },
+                {
+                  "key": "startDate",
+                  "value": ""
+                },
+                {
+                  "key": "endDate",
+                  "value": ""
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "List expenses with filters and pagination (Owner/Receptionist only)"
+          }
+        },
+        {
+          "name": "Create Expense",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Office supplies\",\n  \"amount\": 50,\n  \"category\": \"supplies\",\n  \"date\": \"2024-01-15\",\n  \"vendor\": \"Office Depot\",\n  \"notes\": \"Monthly office supplies purchase\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/expenses",
+              "host": ["{{baseUrl}}"],
+              "path": ["expenses"]
+            },
+            "description": "Create a new expense record (Owner/Receptionist only)"
+          }
+        },
+        {
+          "name": "Get Expenses Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/expenses/summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["expenses", "summary"]
+            },
+            "description": "Get expense summary statistics (Owner/Receptionist only)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Create Report",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient\": \"PATIENT_ID_HERE\",\n  \"appointment\": \"APPOINTMENT_ID_HERE\",\n  \"treatment\": \"TREATMENT_ID_HERE\",\n  \"title\": \"Post-Treatment Report\",\n  \"content\": \"Patient responded well to treatment. No complications observed.\",\n  \"type\": \"treatment\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reports",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports"]
+            },
+            "description": "Create a new medical report"
+          }
+        },
+        {
+          "name": "Get Patient Reports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/patient/:patientId",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "patient", ":patientId"],
+              "variable": [
+                {
+                  "key": "patientId",
+                  "value": "PATIENT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Get all reports for a specific patient"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Media Management",
+      "item": [
+        {
+          "name": "Upload File",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "type",
+                  "value": "xray",
+                  "type": "text"
+                },
+                {
+                  "key": "patient",
+                  "value": "PATIENT_ID_HERE",
+                  "type": "text"
+                },
+                {
+                  "key": "appointment",
+                  "value": "APPOINTMENT_ID_HERE",
+                  "type": "text"
+                },
+                {
+                  "key": "treatment",
+                  "value": "TREATMENT_ID_HERE",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/media/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["media", "upload"]
+            },
+            "description": "Upload a file (image, x-ray, document)"
+          }
+        },
+        {
+          "name": "Get Media File",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/media/:mediaId",
+              "host": ["{{baseUrl}}"],
+              "path": ["media", ":mediaId"],
+              "variable": [
+                {
+                  "key": "mediaId",
+                  "value": "MEDIA_ID_HERE"
+                }
+              ]
+            },
+            "description": "Get media file by ID"
+          }
+        }
+      ]
+    },
+    {
+      "name": "App Info",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": ["{{baseUrl}}"],
+              "path": [""]
+            },
+            "description": "Basic health check endpoint"
+          }
+        }
+      ]
+    }
+  ]
+}
