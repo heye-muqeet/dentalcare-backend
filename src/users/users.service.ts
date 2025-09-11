@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User } from '../schemas/user.schema';
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class UsersService {
@@ -17,8 +18,45 @@ export class UsersService {
   }
 
   async create(ownerId: string, payload: Partial<User>) {
-    const user = await this.userModel.create(payload);
-    return user;
+    try {
+      // Validate required fields
+      if (!payload.email || !payload.password || !payload.name || !payload.phone) {
+        throw new HttpException('Missing required fields', HttpStatus.BAD_REQUEST);
+      }
+      
+      // Check if email already exists
+      const existingUser = await this.userModel.findOne({ email: payload.email });
+      if (existingUser) {
+        throw new HttpException('Email already in use', HttpStatus.BAD_REQUEST);
+      }
+      
+      // Hash the password
+      const hashedPassword = await bcrypt.hash(payload.password, 10);
+      
+      // Create user with hashed password
+      const user = await this.userModel.create({
+        ...payload,
+        password: hashedPassword,
+        status: 'active'
+      });
+      
+      // Return user without password
+      const userObject = user.toObject();
+      const { password, ...userWithoutPassword } = userObject;
+      
+      return userWithoutPassword;
+    } catch (error) {
+      console.error('Error creating user:', error);
+      
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      
+      throw new HttpException(
+        error.message || 'Failed to create user',
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
 
   async update(id: string, payload: Partial<User>) {

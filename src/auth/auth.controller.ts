@@ -167,17 +167,46 @@ export class AuthController {
         email: user.email,
         role: user.role,
       },
+      token: token, // Return token in response body as well
     });
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   async profile(@Req() req: Request) {
-    const auth = (req as any).user as { id: string };
-    const user = await this.userModel.findById(auth.id).lean();
-    const organization = await this.orgModel.findById(user?.organization).lean();
-    const location = await this.locationModel.findById(user?.location).lean();
-    return { ...user, organization, location };
+    try {
+      const auth = (req as any).user as { id: string };
+      const user = await this.userModel.findById(auth.id).lean();
+      
+      if (!user) {
+        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      }
+      
+      const organization = await this.orgModel.findById(user?.organization).lean();
+      const location = await this.locationModel.findById(user?.location).lean();
+      
+      // Generate a fresh token to extend the session
+      const token = this.jwtService.sign({
+        id: user._id.toString(),
+        email: user.email,
+        role: user.role,
+        organizationId: user.organization,
+        locationId: user.location,
+      });
+      
+      return { 
+        ...user, 
+        organization, 
+        location,
+        token // Include token in response
+      };
+    } catch (error) {
+      console.error('Profile fetch error:', error);
+      throw new HttpException(
+        'Failed to fetch profile', 
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
 
   @Post('logout')
