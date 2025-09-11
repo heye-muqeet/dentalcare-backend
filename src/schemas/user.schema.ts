@@ -24,7 +24,7 @@ export class User {
   gender?: string;
 
   @Prop()
-  age?: number;
+  dateOfBirth?: Date;
 
   @Prop({ default: '' })
   profileImage: string;
