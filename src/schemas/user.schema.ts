@@ -8,7 +8,7 @@ export class User {
   @Prop({ required: true })
   name: string;
 
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true })
   email: string;
 
   @Prop({ required: true })
@@ -61,5 +61,11 @@ export class User {
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
+
+// Create a compound index to ensure email uniqueness is scoped to organization and role
+UserSchema.index(
+  { email: 1, organization: 1, role: 1 },
+  { unique: true }
+);
 
 

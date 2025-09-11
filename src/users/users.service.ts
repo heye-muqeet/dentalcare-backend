@@ -24,10 +24,15 @@ export class UsersService {
         throw new HttpException('Missing required fields', HttpStatus.BAD_REQUEST);
       }
       
-      // Check if email already exists
-      const existingUser = await this.userModel.findOne({ email: payload.email });
+      // Check if email already exists within the same organization with the same role
+      const existingUser = await this.userModel.findOne({ 
+        email: payload.email, 
+        organization: payload.organization,
+        role: payload.role
+      });
+      
       if (existingUser) {
-        throw new HttpException('Email already in use', HttpStatus.BAD_REQUEST);
+        throw new HttpException('Email already in use with this role in this organization', HttpStatus.BAD_REQUEST);
       }
       
       // Hash the password
