@@ -25,6 +25,12 @@ export class UsersService {
       }
       
       // Check if email already exists within the same organization with the same role
+      console.log('Validating email uniqueness with:', { 
+        email: payload.email, 
+        organization: payload.organization,
+        role: payload.role
+      });
+      
       const existingUser = await this.userModel.findOne({ 
         email: payload.email, 
         organization: payload.organization,
@@ -32,7 +38,10 @@ export class UsersService {
       });
       
       if (existingUser) {
+        console.log('Duplicate user found:', existingUser);
         throw new HttpException('Email already in use with this role in this organization', HttpStatus.BAD_REQUEST);
+      } else {
+        console.log('No duplicate user found, proceeding with creation');
       }
       
       // Hash the password

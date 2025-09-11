@@ -8,7 +8,7 @@ export class User {
   @Prop({ required: true })
   name: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, index: true }) // index: true creates non-unique index
   email: string;
 
   @Prop({ required: true })

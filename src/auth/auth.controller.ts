@@ -68,8 +68,14 @@ export class AuthController {
         throw new HttpException('All fields are required', HttpStatus.BAD_REQUEST);
       }
 
-      const exists = await this.userModel.findOne({ email: body.email });
-      if (exists) throw new HttpException('Email already in use', HttpStatus.BAD_REQUEST);
+      // During registration, we need to check if this email is already used as an 'owner'
+      // Since we're creating an owner account, we'll check if this email exists with 'owner' role
+      const exists = await this.userModel.findOne({ 
+        email: body.email,
+        role: 'owner'
+      });
+      
+      if (exists) throw new HttpException('Email already registered as an owner', HttpStatus.BAD_REQUEST);
 
       const org = await this.orgModel.create({
         name: body.organizationName,
