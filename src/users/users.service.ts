@@ -79,7 +79,10 @@ export class UsersService {
   }
 
   async listDoctors(organization: string) {
-    return this.userModel.find({ organization, role: 'doctor' }).lean();
+    console.log('Fetching doctors for organization:', organization);
+    const doctors = await this.userModel.find({ organization, role: 'doctor' }).lean();
+    console.log(`Found ${doctors.length} doctors:`, doctors);
+    return { items: doctors }; // Return in a consistent format matching other endpoints
   }
 
   async delete(id: string) {
