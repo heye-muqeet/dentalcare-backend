@@ -8,7 +8,7 @@ export class Patient {
   @Prop({ required: true })
   name: string;
 
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true })
   email: string;
 
   @Prop({ required: true })
@@ -47,4 +47,9 @@ export class Patient {
 
 export const PatientSchema = SchemaFactory.createForClass(Patient);
 
+// Add a compound index for email+organization to ensure email is unique within an organization
+PatientSchema.index(
+  { email: 1, organization: 1 },
+  { unique: true }
+);
 
