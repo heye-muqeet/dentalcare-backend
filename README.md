@@ -1,98 +1,121 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Dental Care Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A NestJS backend application for a dental care management system with MongoDB and Mongoose.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Features
 
-## Description
+- **NestJS Framework**: Modern, scalable Node.js framework
+- **MongoDB with Mongoose**: NoSQL database with ODM
+- **Environment Configuration**: Secure configuration management
+- **CORS Support**: Ready for frontend integration
+- **User Management**: Complete CRUD operations for users
+- **Appointment System**: Schema for appointment management
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Prerequisites
 
-## Project setup
+- Node.js (v16 or higher)
+- MongoDB (local or cloud instance)
+- npm or yarn
 
+## Installation
+
+1. Install dependencies:
 ```bash
-$ npm install
+npm install
 ```
 
-## Compile and run the project
-
+2. Set up environment variables:
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+# Copy the .env file and update the MongoDB URI
+cp .env.example .env
 ```
 
-## Run tests
-
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+3. Update the `.env` file with your MongoDB connection string:
+```
+MONGODB_URI=mongodb://localhost:27017/dental-care
 ```
 
-## Deployment
+## Running the Application
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
+### Development
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run start:dev
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Production
+```bash
+npm run build
+npm run start:prod
+```
 
-## Resources
+## API Endpoints
 
-Check out a few resources that may come in handy when working with NestJS:
+### Users
+- `GET /users` - Get all users
+- `POST /users` - Create a new user
+- `GET /users/:id` - Get user by ID
+- `PATCH /users/:id` - Update user
+- `DELETE /users/:id` - Delete user
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## Database Schemas
 
-## Support
+### User Schema
+- firstName: string (required)
+- lastName: string (required)
+- email: string (required, unique)
+- password: string (required)
+- role: 'patient' | 'dentist' | 'admin' (default: 'patient')
+- phone: string (optional)
+- address: string (optional)
+- dateOfBirth: Date (optional)
+- isActive: boolean (default: true)
+- profileImage: string (optional)
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+### Appointment Schema
+- patientId: ObjectId (required)
+- dentistId: ObjectId (required)
+- appointmentDate: Date (required)
+- startTime: string (required)
+- endTime: string (required)
+- status: 'scheduled' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled'
+- notes: string (optional)
+- treatment: string (optional)
+- cost: number (default: 0)
+- isPaid: boolean (default: false)
 
-## Stay in touch
+## Project Structure
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```
+src/
+├── config/
+│   └── database.config.ts    # Database configuration
+├── modules/
+│   └── users/
+│       ├── users.controller.ts
+│       ├── users.module.ts
+│       └── users.service.ts
+├── schemas/
+│   ├── appointment.schema.ts
+│   └── user.schema.ts
+├── app.module.ts
+├── main.ts
+└── ...
+```
 
-## License
+## Environment Variables
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- `MONGODB_URI`: MongoDB connection string
+- `DB_NAME`: Database name
+- `PORT`: Server port (default: 3000)
+- `NODE_ENV`: Environment (development/production)
+- `JWT_SECRET`: JWT secret key (for future authentication)
+- `JWT_EXPIRES_IN`: JWT expiration time
+
+## Next Steps
+
+1. Set up authentication and authorization
+2. Add more business logic modules (appointments, treatments, etc.)
+3. Implement validation pipes
+4. Add error handling middleware
+5. Set up logging
+6. Add API documentation with Swagger
