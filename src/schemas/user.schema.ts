@@ -38,6 +38,9 @@ export class User {
 
   @Prop()
   profileImage?: string;
+
+  @Prop()
+  profileImagePublicId?: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

@@ -59,6 +59,9 @@ jspm_packages/
 # dotenv environment variables file
 .env
 
+# Upload directories
+uploads/
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache

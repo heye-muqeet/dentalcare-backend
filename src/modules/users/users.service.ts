@@ -28,6 +28,14 @@ export class UsersService {
     return this.userModel.findByIdAndUpdate(id, updateUserDto, { new: true }).exec();
   }
 
+  async updateProfileImage(id: string, profileImage: string, profileImagePublicId: string): Promise<User | null> {
+    return this.userModel.findByIdAndUpdate(
+      id, 
+      { profileImage, profileImagePublicId }, 
+      { new: true }
+    ).exec();
+  }
+
   async remove(id: string): Promise<User | null> {
     return this.userModel.findByIdAndDelete(id).exec();
   }
