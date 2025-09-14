@@ -84,8 +84,6 @@ export class TokenService {
       organizationId: user.organizationId,
       branchId: user.branchId,
       type: 'access',
-      iat: Math.floor(now.getTime() / 1000),
-      exp: Math.floor(accessTokenExpiry.getTime() / 1000),
     };
 
     const accessToken = this.jwtService.sign(accessTokenPayload);
@@ -102,8 +100,8 @@ export class TokenService {
       userId: user._id || user.id,
       userEmail: user.email,
       userRole: user.role,
-      organizationId: user.organizationId,
-      branchId: user.branchId,
+      organizationId: user.organizationId?._id || user.organizationId,
+      branchId: user.branchId?._id || user.branchId,
       status: TokenStatus.ACTIVE,
       expiresAt: refreshTokenExpiry,
       lastUsedAt: now,
@@ -237,8 +235,6 @@ export class TokenService {
       organizationId: tokenDoc.organizationId,
       branchId: tokenDoc.branchId,
       type: 'access',
-      iat: Math.floor(now.getTime() / 1000),
-      exp: Math.floor(accessTokenExpiry.getTime() / 1000),
     };
 
     const accessToken = this.jwtService.sign(accessTokenPayload);

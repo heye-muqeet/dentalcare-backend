@@ -54,7 +54,7 @@ export class AuthController {
     if (req.user.role !== 'super_admin') {
       throw new Error('Unauthorized');
     }
-    return this.authService.createOrganizationAdmin(createOrgAdminDto);
+    return this.authService.createOrganizationAdmin(createOrgAdminDto, req.user.userId);
   }
 
   @Post('branch-admin')
@@ -64,7 +64,7 @@ export class AuthController {
     if (req.user.role !== 'organization_admin') {
       throw new Error('Unauthorized');
     }
-    return this.authService.createBranchAdmin(createBranchAdminDto);
+    return this.authService.createBranchAdmin(createBranchAdminDto, req.user.userId);
   }
 
   @Post('doctor')

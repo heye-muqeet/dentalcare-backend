@@ -152,7 +152,7 @@ export class AuthService {
     return superAdmin.save();
   }
 
-  async createOrganizationAdmin(createOrgAdminDto: any): Promise<OrganizationAdmin> {
+  async createOrganizationAdmin(createOrgAdminDto: any, createdBy?: string): Promise<OrganizationAdmin> {
     const existingAdmin = await this.orgAdminModel.findOne({ email: createOrgAdminDto.email }).exec();
     if (existingAdmin) {
       throw new ConflictException('Organization Admin with this email already exists');
@@ -162,12 +162,13 @@ export class AuthService {
     const orgAdmin = new this.orgAdminModel({
       ...createOrgAdminDto,
       password: hashedPassword,
+      createdBy: createdBy || createOrgAdminDto.createdBy,
     });
 
     return orgAdmin.save();
   }
 
-  async createBranchAdmin(createBranchAdminDto: any): Promise<BranchAdmin> {
+  async createBranchAdmin(createBranchAdminDto: any, createdBy?: string): Promise<BranchAdmin> {
     const existingAdmin = await this.branchAdminModel.findOne({ email: createBranchAdminDto.email }).exec();
     if (existingAdmin) {
       throw new ConflictException('Branch Admin with this email already exists');
@@ -177,6 +178,7 @@ export class AuthService {
     const branchAdmin = new this.branchAdminModel({
       ...createBranchAdminDto,
       password: hashedPassword,
+      createdBy: createdBy || createBranchAdminDto.createdBy,
     });
 
     return branchAdmin.save();
