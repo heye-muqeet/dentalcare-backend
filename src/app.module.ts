@@ -13,6 +13,7 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
 import { BranchesModule } from './modules/branches/branches.module';
 import { SeederModule } from './seeders/seeder.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { AuditModule } from './modules/audit/audit.module';
     UsersModule,
     UploadModule,
     AuditModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],
