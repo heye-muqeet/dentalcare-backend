@@ -1,0 +1,2154 @@
+{
+	"info": {
+		"_postman_id": "dental-care-management-system",
+		"name": "Dental Care Management System API",
+		"description": "Comprehensive API collection for the role-based dental care management system with hierarchical access control.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "dental-care-api"
+	},
+	"item": [
+		{
+			"name": "🚀 Setup & Initialization",
+			"item": [
+				{
+					"name": "1. Create Super Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Auto-extract super admin token if login response",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    if (responseJson.access_token) {",
+									"        pm.environment.set('super_admin_token', responseJson.access_token);",
+									"        pm.environment.set('auth_token', responseJson.access_token);",
+									"        console.log('Super Admin token set successfully');",
+									"    }",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"superadmin\",\n  \"firstName\": \"Super\",\n  \"lastName\": \"Admin\",\n  \"email\": \"superadmin@dentalcare.com\",\n  \"password\": \"SuperAdmin123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/super-admin",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"super-admin"
+							]
+						},
+						"description": "Create initial Super Admin (only if none exists)"
+					},
+					"response": []
+				},
+				{
+					"name": "2. Login - Super Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Auto-extract super admin token",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    if (responseJson.access_token) {",
+									"        pm.environment.set('super_admin_token', responseJson.access_token);",
+									"        pm.environment.set('auth_token', responseJson.access_token);",
+									"        console.log('Super Admin logged in successfully');",
+									"    }",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"superadmin@dentalcare.com\",\n  \"password\": \"SuperAdmin123!\",\n  \"role\": \"super_admin\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login as Super Admin to get access token"
+					},
+					"response": []
+				},
+				{
+					"name": "3. Create Organization",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Validate super admin token",
+									"const token = pm.environment.get('super_admin_token');",
+									"if (!token || token.trim() === '') {",
+									"    throw new Error('Super Admin token required. Please login as Super Admin first.');",
+									"}"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Auto-extract organization ID",
+									"if (pm.response.code === 200 || pm.response.code === 201) {",
+									"    const responseJson = pm.response.json();",
+									"    if (responseJson._id) {",
+									"        pm.environment.set('organization_id', responseJson._id);",
+									"        console.log('Organization ID set:', responseJson._id);",
+									"    }",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{super_admin_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Dental Care Center\",\n  \"description\": \"Premium dental care services\",\n  \"address\": \"123 Main St\",\n  \"city\": \"New York\",\n  \"state\": \"NY\",\n  \"country\": \"USA\",\n  \"postalCode\": \"10001\",\n  \"phone\": \"1234567890\",\n  \"email\": \"info@dentalcare.com\",\n  \"website\": \"https://dentalcare.com\",\n  \"tags\": [\"premium\", \"cosmetic\", \"orthodontics\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/organizations",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"organizations"
+							]
+						},
+						"description": "Create new organization (Super Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "4. Create Organization Admin",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Validate super admin token and organization ID",
+									"const token = pm.environment.get('super_admin_token');",
+									"const orgId = pm.environment.get('organization_id');",
+									"if (!token || token.trim() === '') {",
+									"    throw new Error('Super Admin token required. Please login as Super Admin first.');",
+									"}",
+									"if (!orgId || orgId.trim() === '') {",
+									"    throw new Error('Organization ID required. Please create an organization first.');",
+									"}"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Auto-extract organization admin token if login response",
+									"if (pm.response.code === 200 || pm.response.code === 201) {",
+									"    const responseJson = pm.response.json();",
+									"    if (responseJson.access_token) {",
+									"        pm.environment.set('organization_admin_token', responseJson.access_token);",
+									"        pm.environment.set('auth_token', responseJson.access_token);",
+									"        console.log('Organization Admin token set successfully');",
+									"    }",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{super_admin_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"orgadmin@example.com\",\n  \"password\": \"password123\",\n  \"phone\": \"1234567890\",\n  \"organizationId\": \"{{organization_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/organization-admin",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"organization-admin"
+							]
+						},
+						"description": "Create Organization Admin (Super Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "5. Login - Organization Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Auto-extract organization admin token",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    if (responseJson.access_token) {",
+									"        pm.environment.set('organization_admin_token', responseJson.access_token);",
+									"        pm.environment.set('auth_token', responseJson.access_token);",
+									"        console.log('Organization Admin logged in successfully');",
+									"    }",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"orgadmin@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"organization_admin\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login as Organization Admin"
+					},
+					"response": []
+				}
+			],
+			"description": "Initial setup and authentication flow"
+		},
+		{
+			"name": "🔐 Authentication (All Roles)",
+			"item": [
+				{
+					"name": "Login - Super Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Auto-extract super admin token and refresh token",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    if (responseJson.access_token) {",
+									"        pm.environment.set('super_admin_token', responseJson.access_token);",
+									"        pm.environment.set('auth_token', responseJson.access_token);",
+									"    }",
+									"    if (responseJson.refresh_token) {",
+									"        pm.environment.set('refresh_token', responseJson.refresh_token);",
+									"    }",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"orgadmin@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"organization_admin\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login as Organization Admin"
+					},
+					"response": []
+				},
+				{
+					"name": "Login - Branch Admin",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"branchadmin@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"branch_admin\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login as Branch Admin"
+					},
+					"response": []
+				},
+				{
+					"name": "Login - Doctor",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"doctor@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"doctor\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login as Doctor"
+					},
+					"response": []
+				},
+				{
+					"name": "Login - Receptionist",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"receptionist@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"receptionist\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login as Receptionist"
+					},
+					"response": []
+				},
+				{
+					"name": "Login - Patient",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"patient@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"patient\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login as Patient"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Super Admin",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"superadmin\",\n  \"firstName\": \"Super\",\n  \"lastName\": \"Admin\",\n  \"email\": \"superadmin@dentalcare.com\",\n  \"password\": \"SuperAdmin123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/super-admin",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"super-admin"
+							]
+						},
+						"description": "Create a new Super Admin (only if none exists)"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Organization Admin",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{super_admin_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"orgadmin@example.com\",\n  \"password\": \"password123\",\n  \"phone\": \"1234567890\",\n  \"organizationId\": \"{{organization_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/organization-admin",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"organization-admin"
+							]
+						},
+						"description": "Create Organization Admin (Super Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Branch Admin",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{organization_admin_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Smith\",\n  \"email\": \"branchadmin@example.com\",\n  \"password\": \"password123\",\n  \"phone\": \"1234567890\",\n  \"branchId\": \"{{branch_id}}\",\n  \"organizationId\": \"{{organization_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/branch-admin",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"branch-admin"
+							]
+						},
+						"description": "Create Branch Admin (Organization Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Doctor",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{branch_admin_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"firstName\": \"Dr. John\",\n  \"lastName\": \"Smith\",\n  \"email\": \"doctor@example.com\",\n  \"password\": \"password123\",\n  \"phone\": \"1234567890\",\n  \"specialization\": \"General Dentistry\",\n  \"licenseNumber\": \"DENT123456\",\n  \"branchId\": \"{{branch_id}}\",\n  \"organizationId\": \"{{organization_id}}\",\n  \"qualifications\": [\"DDS\", \"MS\"],\n  \"experienceYears\": 5,\n  \"languages\": [\"English\", \"Spanish\"],\n  \"consultationFee\": {\n    \"amount\": 150,\n    \"currency\": \"USD\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/doctor",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"doctor"
+							]
+						},
+						"description": "Create Doctor (Branch Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Receptionist",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{branch_admin_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"firstName\": \"Mary\",\n  \"lastName\": \"Johnson\",\n  \"email\": \"receptionist@example.com\",\n  \"password\": \"password123\",\n  \"phone\": \"1234567890\",\n  \"branchId\": \"{{branch_id}}\",\n  \"organizationId\": \"{{organization_id}}\",\n  \"languages\": [\"English\", \"French\"],\n  \"experienceYears\": 2\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/receptionist",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"receptionist"
+							]
+						},
+						"description": "Create Receptionist (Branch Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Patient",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{receptionist_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"firstName\": \"Patient\",\n  \"lastName\": \"Name\",\n  \"email\": \"patient@example.com\",\n  \"password\": \"password123\",\n  \"phone\": \"1234567890\",\n  \"branchId\": \"{{branch_id}}\",\n  \"organizationId\": \"{{organization_id}}\",\n  \"dateOfBirth\": \"1990-01-01\",\n  \"allergies\": [\"Penicillin\"],\n  \"medicalConditions\": [\"Diabetes\"],\n  \"emergencyContactName\": \"Emergency Contact\",\n  \"emergencyContactPhone\": \"9876543210\",\n  \"emergencyContactRelation\": \"Spouse\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/patient",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"patient"
+							]
+						},
+						"description": "Create Patient (Receptionist only)"
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication endpoints for all user roles"
+		},
+		{
+			"name": "🏢 Organization Management",
+			"item": [
+				{
+					"name": "Get All Organizations",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{super_admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/organizations",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"organizations"
+							]
+						},
+						"description": "Get all organizations (Super Admin) or own organization (Organization Admin)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Organization by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{super_admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/organizations/{{organization_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"organizations",
+								"{{organization_id}}"
+							]
+						},
+						"description": "Get specific organization details"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Organization",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{super_admin_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Dental Care Center\",\n  \"description\": \"Premium dental care services\",\n  \"address\": \"123 Main St\",\n  \"city\": \"New York\",\n  \"state\": \"NY\",\n  \"country\": \"USA\",\n  \"postalCode\": \"10001\",\n  \"phone\": \"1234567890\",\n  \"email\": \"info@dentalcare.com\",\n  \"website\": \"https://dentalcare.com\",\n  \"tags\": [\"premium\", \"cosmetic\", \"orthodontics\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/organizations",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"organizations"
+							]
+						},
+						"description": "Create new organization (Super Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Organization",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{super_admin_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Dental Care Center\",\n  \"description\": \"Updated description\",\n  \"website\": \"https://updated-dentalcare.com\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/organizations/{{organization_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"organizations",
+								"{{organization_id}}"
+							]
+						},
+						"description": "Update organization details"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Organization",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{super_admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/organizations/{{organization_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"organizations",
+								"{{organization_id}}"
+							]
+						},
+						"description": "Delete organization (Super Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Organization Admins",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{super_admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/organizations/{{organization_id}}/admins",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"organizations",
+								"{{organization_id}}",
+								"admins"
+							]
+						},
+						"description": "Get all admins for an organization"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Organization Admin",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{super_admin_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"firstName\": \"Admin\",\n  \"lastName\": \"Name\",\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\",\n  \"phone\": \"1234567890\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/organizations/{{organization_id}}/admins",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"organizations",
+								"{{organization_id}}",
+								"admins"
+							]
+						},
+						"description": "Create organization admin (Super Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Organization Stats",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{super_admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/organizations/{{organization_id}}/stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"organizations",
+								"{{organization_id}}",
+								"stats"
+							]
+						},
+						"description": "Get organization statistics"
+					},
+					"response": []
+				}
+			],
+			"description": "Organization management endpoints"
+		},
+		{
+			"name": "🏥 Branch Management",
+			"item": [
+				{
+					"name": "Get All Branches",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{organization_admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/branches",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"branches"
+							]
+						},
+						"description": "Get all branches (Organization Admin) or own branches (Branch Admin)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Branch by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{organization_admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/branches/{{branch_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"branches",
+								"{{branch_id}}"
+							]
+						},
+						"description": "Get specific branch details"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Branch",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{organization_admin_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Downtown Branch\",\n  \"description\": \"Main downtown location\",\n  \"address\": \"456 Oak St\",\n  \"city\": \"New York\",\n  \"state\": \"NY\",\n  \"country\": \"USA\",\n  \"postalCode\": \"10002\",\n  \"phone\": \"1234567891\",\n  \"email\": \"downtown@dentalcare.com\",\n  \"services\": [\"General Dentistry\", \"Orthodontics\", \"Cosmetic\"],\n  \"operatingHours\": {\n    \"monday\": { \"open\": \"09:00\", \"close\": \"17:00\", \"isOpen\": true },\n    \"tuesday\": { \"open\": \"09:00\", \"close\": \"17:00\", \"isOpen\": true },\n    \"wednesday\": { \"open\": \"09:00\", \"close\": \"17:00\", \"isOpen\": true },\n    \"thursday\": { \"open\": \"09:00\", \"close\": \"17:00\", \"isOpen\": true },\n    \"friday\": { \"open\": \"09:00\", \"close\": \"17:00\", \"isOpen\": true },\n    \"saturday\": { \"open\": \"09:00\", \"close\": \"13:00\", \"isOpen\": true },\n    \"sunday\": { \"open\": \"09:00\", \"close\": \"13:00\", \"isOpen\": false }\n  },\n  \"branchAdminFirstName\": \"Branch\",\n  \"branchAdminLastName\": \"Admin\",\n  \"branchAdminEmail\": \"branchadmin@example.com\",\n  \"branchAdminPassword\": \"password123\",\n  \"branchAdminPhone\": \"1234567892\",\n  \"tags\": [\"downtown\", \"main\", \"premium\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/branches",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"branches"
+							]
+						},
+						"description": "Create new branch with automatic Branch Admin creation (Organization Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Branch",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{organization_admin_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Branch Name\",\n  \"description\": \"Updated description\",\n  \"phone\": \"1234567899\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/branches/{{branch_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"branches",
+								"{{branch_id}}"
+							]
+						},
+						"description": "Update branch details"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Branch",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{organization_admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/branches/{{branch_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"branches",
+								"{{branch_id}}"
+							]
+						},
+						"description": "Delete branch (Organization Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Branch Admins",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{organization_admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/branches/{{branch_id}}/admins",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"branches",
+								"{{branch_id}}",
+								"admins"
+							]
+						},
+						"description": "Get all admins for a branch"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Branch Doctors",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{organization_admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/branches/{{branch_id}}/doctors",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"branches",
+								"{{branch_id}}",
+								"doctors"
+							]
+						},
+						"description": "Get all doctors for a branch"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Branch Receptionists",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{organization_admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/branches/{{branch_id}}/receptionists",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"branches",
+								"{{branch_id}}",
+								"receptionists"
+							]
+						},
+						"description": "Get all receptionists for a branch"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Branch Patients",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{organization_admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/branches/{{branch_id}}/patients",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"branches",
+								"{{branch_id}}",
+								"patients"
+							]
+						},
+						"description": "Get all patients for a branch"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Branch Stats",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{organization_admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/branches/{{branch_id}}/stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"branches",
+								"{{branch_id}}",
+								"stats"
+							]
+						},
+						"description": "Get branch statistics"
+					},
+					"response": []
+				}
+			],
+			"description": "Branch management endpoints"
+		},
+		{
+			"name": "📁 File Upload",
+			"item": [
+				{
+					"name": "Upload Image",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "folder",
+									"value": "dental-care/profile-images",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/image",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"image"
+							]
+						},
+						"description": "Upload image file (JPG, PNG, GIF, WebP) - Max 5MB"
+					},
+					"response": []
+				},
+				{
+					"name": "Upload Document",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "folder",
+									"value": "dental-care/documents",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/upload/document",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"document"
+							]
+						},
+						"description": "Upload document file (PDF, DOC, DOCX, TXT) - Max 10MB"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete File",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/upload/{{public_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"{{public_id}}"
+							]
+						},
+						"description": "Delete file from Cloudinary using public ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Get File Info",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/upload/{{public_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"upload",
+								"{{public_id}}"
+							]
+						},
+						"description": "Get file information from Cloudinary"
+					},
+					"response": []
+				}
+			],
+			"description": "File upload and management endpoints"
+		},
+		{
+			"name": "👥 User Management (Legacy)",
+			"item": [
+				{
+					"name": "Get All Users",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users"
+							]
+						},
+						"description": "Get all users (legacy endpoint)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id}}"
+							]
+						},
+						"description": "Get specific user details (legacy endpoint)"
+					},
+					"response": []
+				},
+				{
+					"name": "Create User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"patient\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users"
+							]
+						},
+						"description": "Create user (legacy endpoint)"
+					},
+					"response": []
+				},
+				{
+					"name": "Update User",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"firstName\": \"Updated John\",\n  \"lastName\": \"Updated Doe\",\n  \"phone\": \"1234567890\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id}}"
+							]
+						},
+						"description": "Update user details (legacy endpoint)"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete User",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id}}"
+							]
+						},
+						"description": "Delete user (legacy endpoint)"
+					},
+					"response": []
+				}
+			],
+			"description": "Legacy user management endpoints (use role-specific auth endpoints instead)"
+		},
+		{
+			"name": "🔐 Token Management",
+			"item": [
+				{
+					"name": "Refresh Access Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Auto-extract new access token",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    if (responseJson.success && responseJson.data) {",
+									"        pm.environment.set('auth_token', responseJson.data.accessToken);",
+									"        console.log('Access token refreshed successfully');",
+									"    }",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/token/refresh",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"token",
+								"refresh"
+							]
+						},
+						"description": "Refresh access token using refresh token"
+					},
+					"response": []
+				},
+				{
+					"name": "Revoke Refresh Token (Logout)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Validate auth token",
+									"const token = pm.environment.get('auth_token');",
+									"if (!token || token.trim() === '') {",
+									"    throw new Error('Authentication token required. Please login first.');",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/token/revoke",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"token",
+								"revoke"
+							]
+						},
+						"description": "Revoke refresh token (logout from current device)"
+					},
+					"response": []
+				},
+				{
+					"name": "Revoke All Tokens (Logout All Devices)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Validate auth token",
+									"const token = pm.environment.get('auth_token');",
+									"if (!token || token.trim() === '') {",
+									"    throw new Error('Authentication token required. Please login first.');",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/auth/token/revoke-all",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"token",
+								"revoke-all"
+							]
+						},
+						"description": "Revoke all refresh tokens (logout from all devices)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User's Active Tokens",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Validate auth token",
+									"const token = pm.environment.get('auth_token');",
+									"if (!token || token.trim() === '') {",
+									"    throw new Error('Authentication token required. Please login first.');",
+									"}"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Log active tokens information",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    if (responseJson.success && responseJson.data) {",
+									"        console.log('Active Tokens:');",
+									"        console.log('- Total Count:', responseJson.data.totalCount);",
+									"        console.log('- Tokens:', responseJson.data.tokens.length);",
+									"        ",
+									"        // Log each token's basic info",
+									"        responseJson.data.tokens.forEach((token, index) => {",
+									"            console.log(`Token ${index + 1}:`);",
+									"            console.log(`  - Device: ${token.deviceName || 'Unknown'}`);",
+									"            console.log(`  - Last Used: ${token.lastUsedAt || 'Never'}`);",
+									"            console.log(`  - Expires: ${token.expiresAt}`);",
+									"            console.log(`  - Remember Me: ${token.isRememberMe}`);",
+									"            console.log(`  - Usage: ${token.usageCount}/${token.maxUsageCount}`);",
+									"        });",
+									"    }",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/auth/token/tokens?includeExpired=false",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"token",
+								"tokens"
+							],
+							"query": [
+								{
+									"key": "includeExpired",
+									"value": "false"
+								}
+							]
+						},
+						"description": "Get user's active refresh tokens"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Token Statistics (Admin)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Validate super admin or organization admin token",
+									"const token = pm.environment.get('super_admin_token') || pm.environment.get('organization_admin_token');",
+									"if (!token || token.trim() === '') {",
+									"    throw new Error('Super Admin or Organization Admin token required.');",
+									"}"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Log token statistics",
+									"if (pm.response.code === 200) {",
+									"    const responseJson = pm.response.json();",
+									"    if (responseJson.success && responseJson.data) {",
+									"        console.log('Token Statistics:');",
+									"        console.log('- Total Tokens:', responseJson.data.totalTokens);",
+									"        console.log('- Active Tokens:', responseJson.data.activeTokens);",
+									"        console.log('- Expired Tokens:', responseJson.data.expiredTokens);",
+									"        console.log('- Revoked Tokens:', responseJson.data.revokedTokens);",
+									"        console.log('- Unique Users:', responseJson.data.uniqueUserCount);",
+									"    }",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{super_admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/auth/token/stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"token",
+								"stats"
+							]
+						},
+						"description": "Get token statistics (Super Admin and Organization Admin only)"
+					},
+					"response": []
+				}
+			],
+			"description": "Token management and refresh endpoints"
+		},
+		{
+			"name": "🔍 Audit & Logging",
+			"item": [
+				{
+					"name": "Get All Audit Logs",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Validate auth token",
+									"const token = pm.environment.get('auth_token');",
+									"if (!token || token.trim() === '') {",
+									"    throw new Error('Authentication token required. Please login first.');",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/audit/logs?limit=50&offset=0",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"audit",
+								"logs"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "50"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						},
+						"description": "Get audit logs with filtering options"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Audit Statistics",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Validate auth token",
+									"const token = pm.environment.get('auth_token');",
+									"if (!token || token.trim() === '') {",
+									"    throw new Error('Authentication token required. Please login first.');",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/audit/stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"audit",
+								"stats"
+							]
+						},
+						"description": "Get audit statistics and metrics"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Activity",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Validate auth token and user ID",
+									"const token = pm.environment.get('auth_token');",
+									"const userId = pm.environment.get('user_id');",
+									"if (!token || token.trim() === '') {",
+									"    throw new Error('Authentication token required. Please login first.');",
+									"}",
+									"if (!userId || userId.trim() === '') {",
+									"    throw new Error('User ID required. Please set user_id in environment.');",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/audit/user/{{user_id}}/activity?limit=50&offset=0",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"audit",
+								"user",
+								"{{user_id}}",
+								"activity"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "50"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						},
+						"description": "Get activity logs for a specific user"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Security Events",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Validate auth token",
+									"const token = pm.environment.get('auth_token');",
+									"if (!token || token.trim() === '') {",
+									"    throw new Error('Authentication token required. Please login first.');",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/audit/security-events?limit=100&offset=0",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"audit",
+								"security-events"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "100"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						},
+						"description": "Get security events (Super Admin and Organization Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Cleanup Old Logs",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Validate super admin token",
+									"const token = pm.environment.get('super_admin_token');",
+									"if (!token || token.trim() === '') {",
+									"    throw new Error('Super Admin token required. Please login as Super Admin first.');",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{super_admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/audit/cleanup",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"audit",
+								"cleanup"
+							]
+						},
+						"description": "Clean up expired audit logs (Super Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Search Audit Logs",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"// Validate auth token",
+									"const token = pm.environment.get('auth_token');",
+									"if (!token || token.trim() === '') {",
+									"    throw new Error('Authentication token required. Please login first.');",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/audit/logs?search=login&activityType=LOGIN&level=INFO&limit=20&offset=0",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"audit",
+								"logs"
+							],
+							"query": [
+								{
+									"key": "search",
+									"value": "login"
+								},
+								{
+									"key": "activityType",
+									"value": "LOGIN"
+								},
+								{
+									"key": "level",
+									"value": "INFO"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						},
+						"description": "Search audit logs with text search and filters"
+					},
+					"response": []
+				}
+			],
+			"description": "Audit logging and monitoring endpoints"
+		},
+		{
+			"name": "🔧 System Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Basic health check endpoint"
+					},
+					"response": []
+				}
+			],
+			"description": "System health and status endpoints"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Auto-set auth_token to the most specific token available",
+					"const tokens = [",
+					"    pm.environment.get('super_admin_token'),",
+					"    pm.environment.get('organization_admin_token'),",
+					"    pm.environment.get('branch_admin_token'),",
+					"    pm.environment.get('doctor_token'),",
+					"    pm.environment.get('receptionist_token'),",
+					"    pm.environment.get('patient_token')",
+					"];",
+					"",
+					"for (let token of tokens) {",
+					"    if (token && token.trim() !== '') {",
+					"        pm.environment.set('auth_token', token);",
+					"        break;",
+					"    }",
+					"}"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Auto-extract tokens from login responses",
+					"if (pm.response.code === 200) {",
+					"    const responseJson = pm.response.json();",
+					"    ",
+					"    if (responseJson.access_token) {",
+					"        const role = responseJson.role;",
+					"        ",
+					"        switch(role) {",
+					"            case 'super_admin':",
+					"                pm.environment.set('super_admin_token', responseJson.access_token);",
+					"                break;",
+					"            case 'organization_admin':",
+					"                pm.environment.set('organization_admin_token', responseJson.access_token);",
+					"                break;",
+					"            case 'branch_admin':",
+					"                pm.environment.set('branch_admin_token', responseJson.access_token);",
+					"                break;",
+					"            case 'doctor':",
+					"                pm.environment.set('doctor_token', responseJson.access_token);",
+					"                break;",
+					"            case 'receptionist':",
+					"                pm.environment.set('receptionist_token', responseJson.access_token);",
+					"                break;",
+					"            case 'patient':",
+					"                pm.environment.set('patient_token', responseJson.access_token);",
+					"                break;",
+					"        }",
+					"        ",
+					"        pm.environment.set('auth_token', responseJson.access_token);",
+					"    }",
+					"    ",
+					"    // Auto-extract refresh token",
+					"    if (responseJson.refresh_token) {",
+					"        pm.environment.set('refresh_token', responseJson.refresh_token);",
+					"    }",
+					"    ",
+					"    // Auto-extract IDs from creation responses",
+					"    if (responseJson.user && responseJson.user.id) {",
+					"        const role = responseJson.role;",
+					"        ",
+					"        if (role === 'organization_admin' && responseJson.organizationId) {",
+					"            pm.environment.set('organization_id', responseJson.organizationId);",
+					"        }",
+					"        ",
+					"        if (role === 'branch_admin' && responseJson.branchId) {",
+					"            pm.environment.set('branch_id', responseJson.branchId);",
+					"        }",
+					"    }",
+					"    ",
+					"    // Extract IDs from other creation responses",
+					"    if (responseJson._id) {",
+					"        if (pm.request.url.path.includes('organizations') && !pm.request.url.path.includes('admins')) {",
+					"            pm.environment.set('organization_id', responseJson._id);",
+					"        }",
+					"        if (pm.request.url.path.includes('branches') && !pm.request.url.path.includes('admins')) {",
+					"            pm.environment.set('branch_id', responseJson._id);",
+					"        }",
+					"    }",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "super_admin_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "organization_admin_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "branch_admin_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "doctor_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "receptionist_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "patient_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "auth_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "organization_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "branch_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "public_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
