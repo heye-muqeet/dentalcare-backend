@@ -1,10 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { SoftDeleteMixin, SoftDeleteDocument } from './base/soft-delete.schema';
 
-export type BranchAdminDocument = BranchAdmin & Document;
+export type BranchAdminDocument = BranchAdmin & Document & SoftDeleteDocument;
 
 @Schema({ timestamps: true })
-export class BranchAdmin {
+export class BranchAdmin extends SoftDeleteMixin {
   @Prop({ required: true, trim: true })
   firstName: string;
 

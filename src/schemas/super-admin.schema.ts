@@ -1,10 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
+import { SoftDeleteMixin, SoftDeleteDocument } from './base/soft-delete.schema';
 
-export type SuperAdminDocument = SuperAdmin & Document;
+export type SuperAdminDocument = SuperAdmin & Document & SoftDeleteDocument;
 
 @Schema({ timestamps: true })
-export class SuperAdmin {
+export class SuperAdmin extends SoftDeleteMixin {
   @Prop({ required: true, unique: true, trim: true })
   username: string;
 

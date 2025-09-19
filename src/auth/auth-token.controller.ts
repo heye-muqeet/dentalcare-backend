@@ -28,7 +28,7 @@ export class AuthTokenController {
       // Log successful refresh
       await this.auditLoggerService.logAuthEvent(
         ActivityType.LOGIN,
-        'Access token refreshed successfully',
+        'Access and refresh tokens refreshed successfully',
         {
           userId: result.userId,
           userEmail: result.userEmail,

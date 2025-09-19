@@ -219,14 +219,17 @@ export class TokenService {
       throw new UnauthorizedException('Refresh token usage limit exceeded');
     }
 
-    // Update token usage
-    tokenDoc.usageCount += 1;
-    tokenDoc.lastUsedAt = new Date();
+    // Revoke the old refresh token
+    tokenDoc.status = TokenStatus.REVOKED;
+    tokenDoc.revokedBy = 'system';
+    tokenDoc.revokedReason = 'Token rotation - replaced with new token';
+    tokenDoc.revokedAt = new Date();
     await tokenDoc.save();
 
     // Generate new access token
     const now = new Date();
     const accessTokenExpiry = new Date(now.getTime() + this.accessTokenExpiry * 1000);
+    const refreshTokenExpiry = new Date(now.getTime() + this.refreshTokenExpiry * 1000);
 
     const accessTokenPayload = {
       sub: tokenDoc.userId,
@@ -239,10 +242,41 @@ export class TokenService {
 
     const accessToken = this.jwtService.sign(accessTokenPayload);
 
+    // Generate new refresh token
+    const newRefreshToken = this.generateSecureRefreshToken();
+    
+    // Save new refresh token to database
+    const newRefreshTokenDoc = new this.refreshTokenModel({
+      token: newRefreshToken,
+      userId: tokenDoc.userId,
+      userEmail: tokenDoc.userEmail,
+      userRole: tokenDoc.userRole,
+      organizationId: tokenDoc.organizationId,
+      branchId: tokenDoc.branchId,
+      status: TokenStatus.ACTIVE,
+      expiresAt: refreshTokenExpiry,
+      lastUsedAt: now,
+      ipAddress: context.ipAddress || tokenDoc.ipAddress,
+      userAgent: context.userAgent || tokenDoc.userAgent,
+      deviceId: tokenDoc.deviceId,
+      deviceName: tokenDoc.deviceName,
+      usageCount: 0,
+      maxUsageCount: this.configService.get<number>('REFRESH_TOKEN_MAX_USAGE', 100),
+      isRememberMe: tokenDoc.isRememberMe,
+      metadata: {
+        createdBy: 'system',
+        userAgent: context.userAgent || tokenDoc.userAgent,
+        ipAddress: context.ipAddress || tokenDoc.ipAddress,
+        rotatedFrom: (tokenDoc._id as any).toString()
+      }
+    });
+
+    await newRefreshTokenDoc.save();
+
     // Log token refresh
     await this.auditLoggerService.logAuthEvent(
       ActivityType.TOKEN_REFRESH,
-      `Access token refreshed for user ${tokenDoc.userEmail}`,
+      `Access and refresh tokens refreshed for user ${tokenDoc.userEmail}`,
       {
         userId: tokenDoc.userId,
         userEmail: tokenDoc.userEmail,
@@ -252,16 +286,17 @@ export class TokenService {
         ipAddress: context.ipAddress,
         userAgent: context.userAgent,
         metadata: {
-          tokenType: 'access_refresh',
-          refreshTokenId: (tokenDoc._id as any).toString(),
-          usageCount: tokenDoc.usageCount
+          tokenType: 'access_refresh_pair',
+          oldRefreshTokenId: (tokenDoc._id as any).toString(),
+          newRefreshTokenId: (newRefreshTokenDoc._id as any).toString(),
+          rotationEnabled: true
         }
       }
     );
 
     return {
       accessToken,
-      refreshToken, // Return same refresh token
+      refreshToken: newRefreshToken, // Return new refresh token
       expiresIn: this.accessTokenExpiry,
       tokenType: 'Bearer',
       userId: tokenDoc.userId,

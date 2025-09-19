@@ -1,10 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { SoftDeleteMixin, SoftDeleteDocument } from './base/soft-delete.schema';
 
-export type PatientDocument = Patient & Document;
+export type PatientDocument = Patient & Document & SoftDeleteDocument;
 
 @Schema({ timestamps: true })
-export class Patient {
+export class Patient extends SoftDeleteMixin {
   @Prop({ required: true, trim: true })
   firstName: string;
 

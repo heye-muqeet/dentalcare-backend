@@ -14,6 +14,7 @@ import { BranchesModule } from './modules/branches/branches.module';
 import { SeederModule } from './seeders/seeder.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { SoftDeleteModule } from './modules/soft-delete/soft-delete.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     UploadModule,
     AuditModule,
     DashboardModule,
+    SoftDeleteModule,
   ],
   controllers: [AppController],
   providers: [AppService],
