@@ -19,45 +19,76 @@ export class BranchesService {
   ) {}
 
   async create(createBranchDto: any, createdBy: string, organizationId: string): Promise<Branch> {
+    console.log('BranchesService.create called with:', {
+      branchData: createBranchDto,
+      createdBy,
+      organizationId
+    });
+
     const branch = new this.branchModel({
       ...createBranchDto,
       organizationId,
       createdBy,
+      isDeleted: false, // Explicitly set to false
     });
 
+    console.log('Creating branch with data:', branch.toObject());
     const savedBranch = await branch.save();
+    console.log('Branch saved successfully:', savedBranch._id);
 
     // Only create Branch Admin if the branch is active and admin data is provided
     if (createBranchDto.isActive && createBranchDto.branchAdminEmail) {
-      await this.createBranchAdmin({
-        firstName: createBranchDto.branchAdminFirstName,
-        lastName: createBranchDto.branchAdminLastName,
-        email: createBranchDto.branchAdminEmail,
-        password: createBranchDto.branchAdminPassword,
-        phone: createBranchDto.branchAdminPhone,
-        address: createBranchDto.branchAdminAddress,
-        dateOfBirth: createBranchDto.branchAdminDateOfBirth,
-        employeeId: createBranchDto.branchAdminEmployeeId,
-      }, (savedBranch._id as any).toString(), organizationId, createdBy);
+      console.log('Creating branch admin for active branch');
+      try {
+        await this.createBranchAdmin({
+          firstName: createBranchDto.branchAdminFirstName,
+          lastName: createBranchDto.branchAdminLastName,
+          email: createBranchDto.branchAdminEmail,
+          password: createBranchDto.branchAdminPassword,
+          phone: createBranchDto.branchAdminPhone,
+          address: createBranchDto.branchAdminAddress,
+          dateOfBirth: createBranchDto.branchAdminDateOfBirth,
+          employeeId: createBranchDto.branchAdminEmployeeId,
+        }, (savedBranch._id as any).toString(), organizationId, createdBy);
+        console.log('Branch admin created successfully');
+      } catch (adminError) {
+        console.error('Failed to create branch admin:', adminError);
+        // Don't fail the entire branch creation if admin creation fails
+      }
     }
 
+    console.log('Returning saved branch:', savedBranch._id);
     return savedBranch;
   }
 
   async findAll(userRole: string, userOrganizationId?: string): Promise<Branch[]> {
-    if (userRole === 'super_admin') {
-      return this.branchModel.find().populate('organizationId createdBy', 'name firstName lastName email').exec();
-    }
+    console.log('BranchesService.findAll called with:', { userRole, userOrganizationId });
     
-    if (userRole === 'organization_admin' && userOrganizationId) {
-      return this.branchModel.find({ organizationId: userOrganizationId }).populate('organizationId createdBy', 'name firstName lastName email').exec();
+    let query = {};
+    
+    if (userRole === 'super_admin') {
+      // Super admin can see all non-deleted branches
+      query = { isDeleted: { $ne: true } };
+    } else if (userRole === 'organization_admin' && userOrganizationId) {
+      // Organization admin can see their organization's non-deleted branches
+      query = { organizationId: userOrganizationId, isDeleted: { $ne: true } };
+    } else if (userRole === 'branch_admin' && userOrganizationId) {
+      // Branch admin can see their organization's non-deleted branches
+      query = { organizationId: userOrganizationId, isDeleted: { $ne: true } };
+    } else {
+      throw new ForbiddenException('Insufficient permissions');
     }
 
-    if (userRole === 'branch_admin' && userOrganizationId) {
-      return this.branchModel.find({ organizationId: userOrganizationId }).populate('organizationId createdBy', 'name firstName lastName email').exec();
-    }
-
-    throw new ForbiddenException('Insufficient permissions');
+    console.log('BranchesService.findAll query:', query);
+    
+    const branches = await this.branchModel
+      .find(query)
+      .populate('organizationId createdBy', 'name firstName lastName email')
+      .sort({ createdAt: -1 })
+      .exec();
+      
+    console.log('BranchesService.findAll found branches:', branches.length);
+    return branches;
   }
 
   async findOne(id: string, userRole: string, userOrganizationId?: string, userBranchId?: string): Promise<Branch> {

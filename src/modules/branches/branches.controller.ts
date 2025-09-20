@@ -8,12 +8,32 @@ export class BranchesController {
   constructor(private readonly branchesService: BranchesService) {}
 
   @Post()
-  create(@Request() req: any, @Body() createBranchDto: any) {
-    // Only Organization Admin can create branches
-    if (req.user.role !== 'organization_admin') {
-      throw new Error('Unauthorized');
+  async create(@Request() req: any, @Body() createBranchDto: any) {
+    try {
+      // Only Organization Admin can create branches
+      if (req.user.role !== 'organization_admin') {
+        throw new Error('Unauthorized');
+      }
+      
+      console.log('Branches controller - create called with:', {
+        user: req.user,
+        branchData: createBranchDto
+      });
+      
+      const savedBranch = await this.branchesService.create(createBranchDto, req.user.userId, req.user.organizationId);
+      
+      console.log('Branches controller - branch created:', (savedBranch as any)._id);
+      
+      // Return in the format expected by frontend
+      return {
+        success: true,
+        data: savedBranch,
+        message: 'Branch created successfully'
+      };
+    } catch (error) {
+      console.error('Branches controller - create error:', error);
+      throw error;
     }
-    return this.branchesService.create(createBranchDto, req.user.userId, req.user.organizationId);
   }
 
   @Get('stats')
