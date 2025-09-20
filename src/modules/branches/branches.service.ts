@@ -91,26 +91,51 @@ export class BranchesService {
     return branches;
   }
 
-  async findOne(id: string, userRole: string, userOrganizationId?: string, userBranchId?: string): Promise<Branch> {
+  async findOne(id: string, userRole: string, userOrganizationId?: string, userBranchId?: string): Promise<any> {
+    console.log('BranchesService.findOne called:', { id, userRole, userOrganizationId, userBranchId });
+    
     const branch = await this.branchModel.findById(id).populate('organizationId createdBy', 'name firstName lastName email').exec();
     
     if (!branch) {
       throw new NotFoundException('Branch not found');
     }
 
+    // Check permissions
     if (userRole === 'super_admin') {
-      return branch;
+      // Super admin can view any branch
+    } else if (userRole === 'organization_admin' && userOrganizationId === branch.organizationId.toString()) {
+      // Organization admin can view their organization's branches
+    } else if (userRole === 'branch_admin' && userBranchId === id) {
+      // Branch admin can view their own branch
+    } else {
+      throw new ForbiddenException('Insufficient permissions');
     }
 
-    if (userRole === 'organization_admin' && userOrganizationId === branch.organizationId.toString()) {
-      return branch;
-    }
+    // Get branch admins for this branch
+    const branchAdmins = await this.branchAdminModel
+      .find({ branchId: id, isDeleted: { $ne: true } })
+      .select('firstName lastName email phone isActive createdAt')
+      .exec();
 
-    if (userRole === 'branch_admin' && userBranchId === id) {
-      return branch;
-    }
+    // Get staff counts
+    const [doctorsCount, receptionistsCount, patientsCount] = await Promise.all([
+      this.doctorModel.countDocuments({ branchId: id, isDeleted: { $ne: true } }).exec(),
+      this.receptionistModel.countDocuments({ branchId: id, isDeleted: { $ne: true } }).exec(),
+      this.patientModel.countDocuments({ branchId: id, isDeleted: { $ne: true } }).exec(),
+    ]);
 
-    throw new ForbiddenException('Insufficient permissions');
+    // Return branch with additional data
+    const branchWithDetails = {
+      ...branch.toObject(),
+      branchAdmins,
+      totalDoctors: doctorsCount,
+      totalReceptionists: receptionistsCount,
+      totalPatients: patientsCount,
+      totalStaff: doctorsCount + receptionistsCount
+    };
+
+    console.log('Branch with details:', { branchId: id, adminCount: branchAdmins.length, totalStaff: branchWithDetails.totalStaff });
+    return branchWithDetails;
   }
 
   async update(id: string, updateBranchDto: any, userRole: string, userOrganizationId?: string, userBranchId?: string): Promise<Branch | null> {

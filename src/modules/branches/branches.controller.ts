@@ -69,8 +69,20 @@ export class BranchesController {
   }
 
   @Get(':id')
-  findOne(@Request() req: any, @Param('id') id: string) {
-    return this.branchesService.findOne(id, req.user.role, req.user.organizationId, req.user.branchId);
+  async findOne(@Request() req: any, @Param('id') id: string) {
+    try {
+      console.log('Branches controller - findOne called:', { id, user: req.user });
+      const branch = await this.branchesService.findOne(id, req.user.role, req.user.organizationId, req.user.branchId);
+      
+      return {
+        success: true,
+        data: branch,
+        message: 'Branch details retrieved successfully'
+      };
+    } catch (error) {
+      console.error('Branches controller - findOne error:', error);
+      throw error;
+    }
   }
 
   @Patch(':id')
