@@ -2,6 +2,8 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
+
+const saltRounds = 10;
 import { Branch, BranchDocument } from '../../schemas/branch.schema';
 import { BranchAdmin, BranchAdminDocument } from '../../schemas/branch-admin.schema';
 import { Doctor, DoctorDocument } from '../../schemas/doctor.schema';
@@ -201,7 +203,13 @@ export class BranchesService {
   }
 
   async update(id: string, updateBranchDto: any, userRole: string, userOrganizationId?: string, userBranchId?: string): Promise<Branch | null> {
-    console.log('BranchesService.update called:', { id, updateData: updateBranchDto, userRole, userOrganizationId });
+    console.log('BranchesService.update called:', { 
+      id, 
+      updateData: updateBranchDto, 
+      userRole, 
+      userOrganizationId,
+      hasBranchAdmins: !!updateBranchDto.branchAdmins
+    });
     
     const branch = await this.branchModel.findById(id).exec();
     if (!branch) {
@@ -221,13 +229,111 @@ export class BranchesService {
     throw new ForbiddenException('Insufficient permissions');
   }
 
+    // Extract admin data from update DTO
+    const { branchAdmins, ...branchUpdateData } = updateBranchDto;
+
+    // Update branch information
     const updatedBranch = await this.branchModel.findByIdAndUpdate(
       id, 
-      updateBranchDto, 
+      branchUpdateData, 
       { new: true }
     ).exec();
 
     console.log('Branch updated:', updatedBranch?._id);
+
+    // Handle branch admins update if provided
+    if (branchAdmins && Array.isArray(branchAdmins)) {
+      console.log('Processing branch admins update:', {
+        adminCount: branchAdmins.length,
+        admins: branchAdmins.map(admin => ({ 
+          id: admin._id, 
+          email: admin.email, 
+          isNew: !admin._id 
+        }))
+      });
+
+      try {
+        // Get current admins for this branch
+        const currentAdmins = await this.branchAdminModel
+          .find({ 
+            branchId: new Types.ObjectId(id), 
+            isDeleted: { $ne: true } 
+          })
+          .exec();
+
+        console.log('Current admins in database:', currentAdmins.length);
+
+        // Process each admin from the update request
+        for (const adminData of branchAdmins) {
+          if (adminData._id) {
+            // Update existing admin
+            console.log('Updating existing admin:', adminData._id);
+            await this.branchAdminModel.findByIdAndUpdate(
+              adminData._id,
+              {
+                firstName: adminData.firstName,
+                lastName: adminData.lastName,
+                email: adminData.email,
+                phone: adminData.phone,
+                address: adminData.address,
+                dateOfBirth: adminData.dateOfBirth,
+                employeeId: adminData.employeeId,
+                isActive: adminData.isActive
+              },
+              { new: true }
+            ).exec();
+          } else if (adminData.password) {
+            // Create new admin (only if password is provided)
+            console.log('Creating new admin:', adminData.email);
+            const hashedPassword = await bcrypt.hash(adminData.password, saltRounds);
+            
+            const newAdmin = new this.branchAdminModel({
+              firstName: adminData.firstName,
+              lastName: adminData.lastName,
+              email: adminData.email,
+              password: hashedPassword,
+              phone: adminData.phone,
+              address: adminData.address,
+              dateOfBirth: adminData.dateOfBirth,
+              employeeId: adminData.employeeId,
+              branchId: new Types.ObjectId(id),
+              organizationId: new Types.ObjectId(branch.organizationId),
+              createdBy: new Types.ObjectId(userOrganizationId), // Use the user making the update
+              isActive: adminData.isActive,
+              isDeleted: false
+            });
+
+            await newAdmin.save();
+            console.log('New admin created successfully');
+          }
+        }
+
+        // Remove admins that are no longer in the list
+        const updatedAdminEmails = branchAdmins.map(admin => admin.email);
+        const adminsToRemove = currentAdmins.filter(admin => 
+          !updatedAdminEmails.includes(admin.email)
+        );
+
+        for (const adminToRemove of adminsToRemove) {
+          console.log('Soft deleting removed admin:', adminToRemove.email);
+          await this.branchAdminModel.findByIdAndUpdate(
+            adminToRemove._id,
+            { 
+              isDeleted: true,
+              deletedAt: new Date(),
+              deletedBy: new Types.ObjectId(userOrganizationId)
+            }
+          ).exec();
+        }
+
+        console.log('Admin updates completed successfully');
+      } catch (adminError) {
+        console.error('Error updating admins:', adminError);
+        // Don't fail the whole update if admin update fails
+        // But log the error for debugging
+      }
+    }
+
     return updatedBranch;
   }
 

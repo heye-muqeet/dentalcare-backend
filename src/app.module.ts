@@ -11,6 +11,8 @@ import { UploadModule } from './modules/upload/upload.module';
 import { AuthModule } from './auth/auth.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { BranchesModule } from './modules/branches/branches.module';
+import { DoctorsModule } from './modules/doctors/doctors.module';
+import { ReceptionistsModule } from './modules/receptionists/receptionists.module';
 import { SeederModule } from './seeders/seeder.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
@@ -42,6 +44,8 @@ import { SoftDeleteModule } from './modules/soft-delete/soft-delete.module';
     AuthModule,
     OrganizationsModule,
     BranchesModule,
+    DoctorsModule,
+    ReceptionistsModule,
     UsersModule,
     UploadModule,
     AuditModule,
