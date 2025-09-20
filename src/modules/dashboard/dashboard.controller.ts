@@ -34,21 +34,26 @@ export class DashboardController {
     const organizationId = req.user.organizationId;
     const branchId = req.user.branchId;
 
-    if (userRole === 'super_admin') {
-      return this.dashboardService.getSystemStats();
-    }
+    try {
+      if (userRole === 'super_admin') {
+        return this.dashboardService.getSystemStats();
+      }
 
-    if (userRole === 'organization_admin' && organizationId) {
-      return this.dashboardService.getOrganizationStats(organizationId);
-    }
+      if (userRole === 'organization_admin' && organizationId) {
+        return this.dashboardService.getOrganizationStats(organizationId);
+      }
 
-    // For other roles, return basic stats
-    return {
-      message: 'Dashboard stats not available for this role',
-      userRole,
-      organizationId,
-      branchId
-    };
+      // For other roles, return basic stats
+      return {
+        message: 'Dashboard stats not available for this role',
+        userRole,
+        organizationId,
+        branchId
+      };
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+      throw new Error('Failed to fetch dashboard statistics');
+    }
   }
 
   @Get('organization/:id/stats')

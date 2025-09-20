@@ -119,6 +119,10 @@ export class OrganizationsController {
 
   @Get(':id/stats')
   getOrganizationStats(@Request() req: any, @Param('id') id: string) {
+    console.log('=== Organization Stats Controller ===');
+    console.log('Request user:', req.user);
+    console.log('Requested org ID:', id);
+    console.log('===================================');
     return this.organizationsService.getOrganizationStats(id, req.user.role, req.user.organizationId);
   }
 }

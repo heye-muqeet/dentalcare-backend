@@ -184,23 +184,67 @@ export class OrganizationsService {
   }
 
   async getOrganizationStats(organizationId: string, userRole: string, userOrganizationId?: string): Promise<any> {
-    if (userRole === 'super_admin') {
-      // Super admin can see stats for any organization
-    } else if (userRole === 'organization_admin' && userOrganizationId === organizationId) {
-      // Organization admin can see stats for their organization
-    } else {
-      throw new ForbiddenException('Insufficient permissions');
-    }
+    try {
+      console.log('=== Organization Stats Debug ===');
+      console.log('Requested organizationId:', organizationId);
+      console.log('User role:', userRole);
+      console.log('User organizationId:', userOrganizationId);
+      console.log('organizationId type:', typeof organizationId);
+      console.log('userOrganizationId type:', typeof userOrganizationId);
+      console.log('Are they equal (===)?', userOrganizationId === organizationId);
+      console.log('Are they equal (toString())?', String(userOrganizationId) === String(organizationId));
+      console.log('================================');
+      
+      if (userRole === 'super_admin') {
+        console.log('Access granted: Super admin');
+        // Super admin can see stats for any organization
+      } else if (userRole === 'organization_admin' && String(userOrganizationId) === String(organizationId)) {
+        console.log('Access granted: Organization admin for their org');
+        // Organization admin can see stats for their organization
+      } else {
+        console.log('Permission denied - Details:', { 
+          userRole, 
+          userOrganizationId, 
+          organizationId,
+          isOrgAdmin: userRole === 'organization_admin',
+          idsMatch: String(userOrganizationId) === String(organizationId)
+        });
+        throw new ForbiddenException('Insufficient permissions to access organization statistics');
+      }
 
-    // This would typically include counts of branches, admins, doctors, etc.
-    // For now, returning basic structure
-    return {
-      organizationId,
-      totalBranches: 0,
-      totalAdmins: 0,
-      totalDoctors: 0,
-      totalReceptionists: 0,
-      totalPatients: 0,
-    };
+      // Get actual counts from database
+      const [
+        totalBranches,
+        totalAdmins,
+        totalDoctors,
+        totalReceptionists,
+        totalPatients
+      ] = await Promise.all([
+        this.branchModel.countDocuments({ organizationId }).exec(),
+        this.orgAdminModel.countDocuments({ organizationId }).exec(),
+        this.doctorModel.countDocuments({ organizationId }).exec(),
+        this.receptionistModel.countDocuments({ organizationId }).exec(),
+        this.patientModel.countDocuments({ organizationId }).exec(),
+      ]);
+
+      const totalUsers = totalAdmins + totalDoctors + totalReceptionists + totalPatients;
+
+      return {
+        success: true,
+        data: {
+          organizationId,
+          totalBranches,
+          totalUsers,
+          totalDoctors,
+          totalReceptionists,
+          totalPatients,
+          monthlyRevenue: 0, // Would need actual revenue calculation
+          activeUsers: totalUsers // Simplified for now
+        }
+      };
+    } catch (error) {
+      console.error('Error fetching organization stats:', error);
+      throw error;
+    }
   }
 }

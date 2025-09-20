@@ -16,9 +16,36 @@ export class BranchesController {
     return this.branchesService.create(createBranchDto, req.user.userId, req.user.organizationId);
   }
 
+  @Get('stats')
+  getBranchesStats(@Request() req: any) {
+    return this.branchesService.getBranchesStats(req.user.role, req.user.organizationId);
+  }
+
   @Get()
-  findAll(@Request() req: any) {
-    return this.branchesService.findAll(req.user.role, req.user.organizationId);
+  async findAll(@Request() req: any) {
+    try {
+      console.log('Branches controller - findAll called by user:', req.user);
+      const branches = await this.branchesService.findAll(req.user.role, req.user.organizationId);
+      console.log('Branches controller - found branches:', branches.length);
+      
+      // Return in the format expected by frontend
+      return {
+        success: true,
+        data: branches,
+        total: branches.length,
+        page: 1,
+        totalPages: 1,
+        message: 'Branches retrieved successfully'
+      };
+    } catch (error) {
+      console.error('Branches controller - error:', error);
+      throw error;
+    }
+  }
+
+  @Get('stats/:id')
+  getBranchStats(@Request() req: any, @Param('id') id: string) {
+    return this.branchesService.getBranchStats(id, req.user.role, req.user.organizationId, req.user.branchId);
   }
 
   @Get(':id')
@@ -54,10 +81,5 @@ export class BranchesController {
   @Get(':id/patients')
   getBranchPatients(@Request() req: any, @Param('id') id: string) {
     return this.branchesService.getBranchPatients(id, req.user.role, req.user.organizationId, req.user.branchId);
-  }
-
-  @Get(':id/stats')
-  getBranchStats(@Request() req: any, @Param('id') id: string) {
-    return this.branchesService.getBranchStats(id, req.user.role, req.user.organizationId, req.user.branchId);
   }
 }

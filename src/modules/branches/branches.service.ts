@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import * as bcrypt from 'bcrypt';
 import { Branch, BranchDocument } from '../../schemas/branch.schema';
 import { BranchAdmin, BranchAdminDocument } from '../../schemas/branch-admin.schema';
 import { Doctor, DoctorDocument } from '../../schemas/doctor.schema';
@@ -26,14 +27,19 @@ export class BranchesService {
 
     const savedBranch = await branch.save();
 
-    // Automatically create a Branch Admin for this branch
-    await this.createBranchAdmin({
-      firstName: createBranchDto.branchAdminFirstName || 'Branch',
-      lastName: createBranchDto.branchAdminLastName || 'Admin',
-      email: createBranchDto.branchAdminEmail,
-      password: createBranchDto.branchAdminPassword || 'defaultPassword123',
-      phone: createBranchDto.branchAdminPhone || '0000000000',
-    }, (savedBranch._id as any).toString(), organizationId, createdBy);
+    // Only create Branch Admin if the branch is active and admin data is provided
+    if (createBranchDto.isActive && createBranchDto.branchAdminEmail) {
+      await this.createBranchAdmin({
+        firstName: createBranchDto.branchAdminFirstName,
+        lastName: createBranchDto.branchAdminLastName,
+        email: createBranchDto.branchAdminEmail,
+        password: createBranchDto.branchAdminPassword,
+        phone: createBranchDto.branchAdminPhone,
+        address: createBranchDto.branchAdminAddress,
+        dateOfBirth: createBranchDto.branchAdminDateOfBirth,
+        employeeId: createBranchDto.branchAdminEmployeeId,
+      }, (savedBranch._id as any).toString(), organizationId, createdBy);
+    }
 
     return savedBranch;
   }
@@ -111,8 +117,30 @@ export class BranchesService {
   }
 
   async createBranchAdmin(createBranchAdminDto: any, branchId: string, organizationId: string, createdBy: string): Promise<BranchAdmin> {
+    // Validate required fields
+    if (!createBranchAdminDto.email) {
+      throw new Error('Branch admin email is required');
+    }
+    if (!createBranchAdminDto.firstName) {
+      throw new Error('Branch admin first name is required');
+    }
+    if (!createBranchAdminDto.lastName) {
+      throw new Error('Branch admin last name is required');
+    }
+    if (!createBranchAdminDto.password) {
+      throw new Error('Branch admin password is required');
+    }
+    if (!createBranchAdminDto.phone) {
+      throw new Error('Branch admin phone is required');
+    }
+
+    // Hash the password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(createBranchAdminDto.password, saltRounds);
+
     const branchAdmin = new this.branchAdminModel({
       ...createBranchAdminDto,
+      password: hashedPassword,
       branchId,
       organizationId,
       createdBy,
@@ -187,6 +215,55 @@ export class BranchesService {
     }
 
     throw new ForbiddenException('Insufficient permissions');
+  }
+
+  async getBranchesStats(userRole: string, userOrganizationId?: string): Promise<any> {
+    try {
+      let query = {};
+      
+      if (userRole === 'super_admin') {
+        // Super admin can see stats for all branches
+      } else if (userRole === 'organization_admin' && userOrganizationId) {
+        // Organization admin can see stats for branches in their organization
+        query = { organizationId: userOrganizationId };
+      } else {
+        throw new ForbiddenException('Insufficient permissions to access branch statistics');
+      }
+
+      const [
+        totalBranches,
+        activeBranches,
+        inactiveBranches,
+        totalDoctors,
+        totalReceptionists,
+        totalPatients
+      ] = await Promise.all([
+        this.branchModel.countDocuments(query).exec(),
+        this.branchModel.countDocuments({ ...query, isActive: true }).exec(),
+        this.branchModel.countDocuments({ ...query, isActive: false }).exec(),
+        this.doctorModel.countDocuments(userOrganizationId ? { organizationId: userOrganizationId } : {}).exec(),
+        this.receptionistModel.countDocuments(userOrganizationId ? { organizationId: userOrganizationId } : {}).exec(),
+        this.patientModel.countDocuments(userOrganizationId ? { organizationId: userOrganizationId } : {}).exec(),
+      ]);
+
+      const totalStaff = totalDoctors + totalReceptionists;
+
+      return {
+        success: true,
+        data: {
+          totalBranches,
+          activeBranches,
+          inactiveBranches,
+          totalStaff,
+          totalDoctors,
+          totalReceptionists,
+          totalPatients,
+        }
+      };
+    } catch (error) {
+      console.error('Error fetching branches stats:', error);
+      throw error;
+    }
   }
 
   async getBranchStats(branchId: string, userRole: string, userOrganizationId?: string, userBranchId?: string): Promise<any> {

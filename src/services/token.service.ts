@@ -81,8 +81,8 @@ export class TokenService {
       sub: user._id || user.id,
       email: user.email,
       role: user.role,
-      organizationId: user.organizationId,
-      branchId: user.branchId,
+      organizationId: user.organizationId?._id || user.organizationId,
+      branchId: user.branchId?._id || user.branchId,
       type: 'access',
     };
 
