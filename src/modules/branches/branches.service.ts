@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { Branch, BranchDocument } from '../../schemas/branch.schema';
 import { BranchAdmin, BranchAdminDocument } from '../../schemas/branch-admin.schema';
@@ -112,10 +112,28 @@ export class BranchesService {
     }
 
     // Get branch admins for this branch
+    console.log('Querying branch admins with branchId:', id);
+    console.log('BranchId type:', typeof id);
+    
+    // Convert string ID to ObjectId for proper query
+    const branchObjectId = new Types.ObjectId(id);
+    console.log('Converted to ObjectId:', branchObjectId);
+    
     const branchAdmins = await this.branchAdminModel
-      .find({ branchId: id, isDeleted: { $ne: true } })
-      .select('firstName lastName email phone isActive createdAt')
+      .find({ 
+        branchId: branchObjectId,
+        isDeleted: { $ne: true } 
+      })
+      .select('firstName lastName email phone isActive createdAt branchId')
       .exec();
+    
+    console.log('Found branch admins:', branchAdmins.length);
+    console.log('Branch admins details:', branchAdmins.map(admin => ({ 
+      id: admin._id, 
+      name: `${admin.firstName} ${admin.lastName}`,
+      email: admin.email,
+      branchId: admin.branchId
+    })));
 
     // Get staff counts
     const [doctorsCount, receptionistsCount, patientsCount] = await Promise.all([
@@ -261,15 +279,26 @@ export class BranchesService {
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(createBranchAdminDto.password, saltRounds);
 
-    const branchAdmin = new this.branchAdminModel({
+    console.log('Creating branch admin with data:', {
       ...createBranchAdminDto,
-      password: hashedPassword,
       branchId,
       organizationId,
       createdBy,
+      password: '[HIDDEN]'
     });
 
-    return branchAdmin.save();
+    const branchAdmin = new this.branchAdminModel({
+      ...createBranchAdminDto,
+      password: hashedPassword,
+      branchId: new Types.ObjectId(branchId),
+      organizationId: new Types.ObjectId(organizationId),
+      createdBy: new Types.ObjectId(createdBy),
+      isDeleted: false, // Explicitly set to false
+    });
+
+    const savedAdmin = await branchAdmin.save();
+    console.log('Branch admin saved successfully:', savedAdmin._id);
+    return savedAdmin;
   }
 
   async getBranchAdmins(branchId: string, userRole: string, userOrganizationId?: string, userBranchId?: string): Promise<BranchAdmin[]> {
