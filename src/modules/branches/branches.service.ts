@@ -112,28 +112,67 @@ export class BranchesService {
     }
 
     // Get branch admins for this branch
+    console.log('=== BRANCH ADMIN QUERY DEBUG ===');
     console.log('Querying branch admins with branchId:', id);
     console.log('BranchId type:', typeof id);
+    
+    // First, let's see ALL branch admins in the database
+    const allAdmins = await this.branchAdminModel.find({}).select('firstName lastName email branchId isDeleted').exec();
+    console.log('ALL branch admins in database:', allAdmins.map(admin => ({
+      id: admin._id,
+      name: `${admin.firstName} ${admin.lastName}`,
+      email: admin.email,
+      branchId: admin.branchId?.toString(),
+      isDeleted: admin.isDeleted
+    })));
     
     // Convert string ID to ObjectId for proper query
     const branchObjectId = new Types.ObjectId(id);
     console.log('Converted to ObjectId:', branchObjectId);
+    console.log('Looking for branchId matching:', branchObjectId.toString());
     
-    const branchAdmins = await this.branchAdminModel
+    // Try multiple query approaches
+    console.log('--- Query Approach 1: ObjectId ---');
+    const branchAdmins1 = await this.branchAdminModel
       .find({ 
         branchId: branchObjectId,
         isDeleted: { $ne: true } 
       })
       .select('firstName lastName email phone isActive createdAt branchId')
       .exec();
+    console.log('Found with ObjectId query:', branchAdmins1.length);
     
-    console.log('Found branch admins:', branchAdmins.length);
-    console.log('Branch admins details:', branchAdmins.map(admin => ({ 
-      id: admin._id, 
+    console.log('--- Query Approach 2: String ---');
+    const branchAdmins2 = await this.branchAdminModel
+      .find({ 
+        branchId: id,
+        isDeleted: { $ne: true } 
+      })
+      .select('firstName lastName email phone isActive createdAt branchId')
+      .exec();
+    console.log('Found with string query:', branchAdmins2.length);
+    
+    console.log('--- Query Approach 3: No isDeleted filter ---');
+    const branchAdmins3 = await this.branchAdminModel
+      .find({ 
+        branchId: branchObjectId
+      })
+      .select('firstName lastName email phone isActive createdAt branchId isDeleted')
+      .exec();
+    console.log('Found without isDeleted filter:', branchAdmins3.length);
+    console.log('Admins without filter:', branchAdmins3.map(admin => ({
+      id: admin._id,
       name: `${admin.firstName} ${admin.lastName}`,
-      email: admin.email,
-      branchId: admin.branchId
+      branchId: admin.branchId?.toString(),
+      isDeleted: admin.isDeleted
     })));
+    
+    // Use the most successful query
+    const branchAdmins = branchAdmins1.length > 0 ? branchAdmins1 : 
+                        branchAdmins2.length > 0 ? branchAdmins2 : branchAdmins3;
+    
+    console.log('Final result - Found branch admins:', branchAdmins.length);
+    console.log('================================');
 
     // Get staff counts
     const [doctorsCount, receptionistsCount, patientsCount] = await Promise.all([
