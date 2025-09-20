@@ -36,6 +36,32 @@ export class BranchesController {
     }
   }
 
+  @Get('debug')
+  async debugBranches(@Request() req: any) {
+    try {
+      console.log('=== BRANCH DEBUG ENDPOINT ===');
+      console.log('User:', req.user);
+      
+      // Get all branches for debugging
+      const allBranches = await this.branchesService.debugGetAllBranches();
+      
+      // Get all branch admins for debugging  
+      const allAdmins = await this.branchesService.debugGetAllBranchAdmins();
+      
+      return {
+        success: true,
+        data: {
+          user: req.user,
+          branches: allBranches,
+          admins: allAdmins
+        }
+      };
+    } catch (error) {
+      console.error('Debug endpoint error:', error);
+      throw error;
+    }
+  }
+
   @Get('stats')
   getBranchesStats(@Request() req: any) {
     return this.branchesService.getBranchesStats(req.user.role, req.user.organizationId);

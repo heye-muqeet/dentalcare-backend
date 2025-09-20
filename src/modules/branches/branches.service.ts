@@ -40,16 +40,16 @@ export class BranchesService {
     if (createBranchDto.isActive && createBranchDto.branchAdminEmail) {
       console.log('Creating branch admin for active branch');
       try {
-        await this.createBranchAdmin({
+    await this.createBranchAdmin({
           firstName: createBranchDto.branchAdminFirstName,
           lastName: createBranchDto.branchAdminLastName,
-          email: createBranchDto.branchAdminEmail,
+      email: createBranchDto.branchAdminEmail,
           password: createBranchDto.branchAdminPassword,
           phone: createBranchDto.branchAdminPhone,
           address: createBranchDto.branchAdminAddress,
           dateOfBirth: createBranchDto.branchAdminDateOfBirth,
           employeeId: createBranchDto.branchAdminEmployeeId,
-        }, (savedBranch._id as any).toString(), organizationId, createdBy);
+    }, (savedBranch._id as any).toString(), organizationId, createdBy);
         console.log('Branch admin created successfully');
       } catch (adminError) {
         console.error('Failed to create branch admin:', adminError);
@@ -100,78 +100,83 @@ export class BranchesService {
       throw new NotFoundException('Branch not found');
     }
 
-    // Check permissions
-    if (userRole === 'super_admin') {
-      // Super admin can view any branch
-    } else if (userRole === 'organization_admin' && userOrganizationId === branch.organizationId.toString()) {
-      // Organization admin can view their organization's branches
-    } else if (userRole === 'branch_admin' && userBranchId === id) {
-      // Branch admin can view their own branch
-    } else {
-      throw new ForbiddenException('Insufficient permissions');
+    // Robust organization ID extraction and comparison
+    const extractOrganizationId = (orgId: any): string => {
+      if (typeof orgId === 'string') return orgId;
+      if (orgId?._id) return orgId._id.toString();
+      if (orgId?.id) return orgId.id.toString();
+      return String(orgId);
+    };
+
+    const userOrgIdString = extractOrganizationId(userOrganizationId);
+    const branchOrgIdString = extractOrganizationId(branch.organizationId);
+
+    console.log('Detailed Organization ID Comparison:', {
+      userRole,
+      userOrgIdString,
+      branchOrgIdString,
+      comparisonResult: userOrgIdString === branchOrgIdString
+    });
+
+    // Comprehensive permission check
+    const isPermitted = 
+      userRole === 'super_admin' || 
+      (userRole === 'organization_admin' && 
+        userOrgIdString === branchOrgIdString) ||
+      (userRole === 'branch_admin' && userBranchId === id);
+
+    if (!isPermitted) {
+      console.log('Access Denied - Detailed Permissions:', {
+        userRole,
+        userOrganizationId: userOrgIdString,
+        branchOrganizationId: branchOrgIdString,
+        message: 'Organization admin does not have access to this branch'
+      });
+      throw new ForbiddenException('Insufficient permissions to access this branch');
     }
+
+    console.log('Access Granted - Full Details:', {
+      userRole,
+      userOrganizationId: userOrgIdString,
+      branchOrganizationId: branchOrgIdString,
+      accessLevel: 'Full Access'
+    });
 
     // Get branch admins for this branch
     console.log('=== BRANCH ADMIN QUERY DEBUG ===');
-    console.log('Querying branch admins with branchId:', id);
-    console.log('BranchId type:', typeof id);
-    
-    // First, let's see ALL branch admins in the database
-    const allAdmins = await this.branchAdminModel.find({}).select('firstName lastName email branchId isDeleted').exec();
-    console.log('ALL branch admins in database:', allAdmins.map(admin => ({
-      id: admin._id,
-      name: `${admin.firstName} ${admin.lastName}`,
-      email: admin.email,
-      branchId: admin.branchId?.toString(),
-      isDeleted: admin.isDeleted
-    })));
-    
-    // Convert string ID to ObjectId for proper query
-    const branchObjectId = new Types.ObjectId(id);
-    console.log('Converted to ObjectId:', branchObjectId);
-    console.log('Looking for branchId matching:', branchObjectId.toString());
-    
-    // Try multiple query approaches
-    console.log('--- Query Approach 1: ObjectId ---');
-    const branchAdmins1 = await this.branchAdminModel
+    console.log('Querying branch admins with details:', {
+      branchId: id,
+      branchIdType: typeof id,
+      branchObjectId: new Types.ObjectId(id),
+      userRole,
+      userOrganizationId,
+      userBranchId
+    });
+
+    const branchAdmins = await this.branchAdminModel
       .find({ 
-        branchId: branchObjectId,
+        branchId: new Types.ObjectId(id), 
         isDeleted: { $ne: true } 
       })
       .select('firstName lastName email phone isActive createdAt branchId')
       .exec();
-    console.log('Found with ObjectId query:', branchAdmins1.length);
-    
-    console.log('--- Query Approach 2: String ---');
-    const branchAdmins2 = await this.branchAdminModel
-      .find({ 
-        branchId: id,
-        isDeleted: { $ne: true } 
-      })
-      .select('firstName lastName email phone isActive createdAt branchId')
-      .exec();
-    console.log('Found with string query:', branchAdmins2.length);
-    
-    console.log('--- Query Approach 3: No isDeleted filter ---');
-    const branchAdmins3 = await this.branchAdminModel
-      .find({ 
-        branchId: branchObjectId
-      })
-      .select('firstName lastName email phone isActive createdAt branchId isDeleted')
-      .exec();
-    console.log('Found without isDeleted filter:', branchAdmins3.length);
-    console.log('Admins without filter:', branchAdmins3.map(admin => ({
-      id: admin._id,
-      name: `${admin.firstName} ${admin.lastName}`,
-      branchId: admin.branchId?.toString(),
-      isDeleted: admin.isDeleted
-    })));
+
+    console.log('Branch Admins Query Results:', {
+      branchAdminsCount: branchAdmins.length,
+      branchAdminsDetails: branchAdmins.map(admin => ({
+        id: admin._id,
+        firstName: admin.firstName,
+        lastName: admin.lastName,
+        email: admin.email,
+        isActive: admin.isActive,
+        branchId: admin.branchId
+      }))
+    });
     
     // Use the most successful query
-    const branchAdmins = branchAdmins1.length > 0 ? branchAdmins1 : 
-                        branchAdmins2.length > 0 ? branchAdmins2 : branchAdmins3;
+    const branchAdminsFinal = branchAdmins;
     
-    console.log('Final result - Found branch admins:', branchAdmins.length);
+    console.log('Final result - Found branch admins:', branchAdminsFinal.length);
     console.log('================================');
 
     // Get staff counts
@@ -184,14 +189,14 @@ export class BranchesService {
     // Return branch with additional data
     const branchWithDetails = {
       ...branch.toObject(),
-      branchAdmins,
+      branchAdmins: branchAdminsFinal,
       totalDoctors: doctorsCount,
       totalReceptionists: receptionistsCount,
       totalPatients: patientsCount,
       totalStaff: doctorsCount + receptionistsCount
     };
 
-    console.log('Branch with details:', { branchId: id, adminCount: branchAdmins.length, totalStaff: branchWithDetails.totalStaff });
+    console.log('Branch with details:', { branchId: id, adminCount: branchAdminsFinal.length, totalStaff: branchWithDetails.totalStaff });
     return branchWithDetails;
   }
 
@@ -213,8 +218,8 @@ export class BranchesService {
     } else if (userRole === 'branch_admin' && userBranchId === id) {
       // Branch admin can update their own branch
     } else {
-      throw new ForbiddenException('Insufficient permissions');
-    }
+    throw new ForbiddenException('Insufficient permissions');
+  }
 
     const updatedBranch = await this.branchModel.findByIdAndUpdate(
       id, 
@@ -229,7 +234,7 @@ export class BranchesService {
   async remove(id: string, userRole: string, userOrganizationId?: string, reason?: string): Promise<Branch | null> {
     console.log('BranchesService.remove called:', { id, userRole, userOrganizationId, reason });
     
-    const branch = await this.branchModel.findById(id).exec();
+      const branch = await this.branchModel.findById(id).exec();
     if (!branch) {
       throw new NotFoundException('Branch not found');
     }
@@ -242,8 +247,8 @@ export class BranchesService {
         throw new ForbiddenException('Insufficient permissions');
       }
     } else {
-      throw new ForbiddenException('Insufficient permissions');
-    }
+    throw new ForbiddenException('Insufficient permissions');
+  }
 
     // Soft delete the branch
     const updatedBranch = await this.branchModel.findByIdAndUpdate(
@@ -263,7 +268,7 @@ export class BranchesService {
   async restore(id: string, userRole: string, userOrganizationId?: string, reason?: string): Promise<Branch | null> {
     console.log('BranchesService.restore called:', { id, userRole, userOrganizationId, reason });
     
-    const branch = await this.branchModel.findById(id).exec();
+      const branch = await this.branchModel.findById(id).exec();
     if (!branch) {
       throw new NotFoundException('Branch not found');
     }
@@ -276,7 +281,7 @@ export class BranchesService {
         throw new ForbiddenException('Insufficient permissions');
       }
     } else {
-      throw new ForbiddenException('Insufficient permissions');
+    throw new ForbiddenException('Insufficient permissions');
     }
 
     // Restore the branch
@@ -480,5 +485,37 @@ export class BranchesService {
       totalReceptionists: receptionistsCount,
       totalPatients: patientsCount,
     };
+  }
+
+  // Debug methods
+  async debugGetAllBranches(): Promise<any[]> {
+    const branches = await this.branchModel
+      .find({})
+      .select('name organizationId createdBy isDeleted')
+      .exec();
+    
+    return branches.map(branch => ({
+      id: branch._id,
+      name: branch.name,
+      organizationId: branch.organizationId.toString(),
+      createdBy: branch.createdBy.toString(),
+      isDeleted: branch.isDeleted
+    }));
+  }
+
+  async debugGetAllBranchAdmins(): Promise<any[]> {
+    const admins = await this.branchAdminModel
+      .find({})
+      .select('firstName lastName email branchId organizationId isDeleted')
+      .exec();
+    
+    return admins.map(admin => ({
+      id: admin._id,
+      name: `${admin.firstName} ${admin.lastName}`,
+      email: admin.email,
+      branchId: admin.branchId?.toString(),
+      organizationId: admin.organizationId?.toString(),
+      isDeleted: admin.isDeleted
+    }));
   }
 }
