@@ -114,37 +114,104 @@ export class BranchesService {
   }
 
   async update(id: string, updateBranchDto: any, userRole: string, userOrganizationId?: string, userBranchId?: string): Promise<Branch | null> {
+    console.log('BranchesService.update called:', { id, updateData: updateBranchDto, userRole, userOrganizationId });
+    
+    const branch = await this.branchModel.findById(id).exec();
+    if (!branch) {
+      throw new NotFoundException('Branch not found');
+    }
+
+    // Check permissions
     if (userRole === 'super_admin') {
-      return this.branchModel.findByIdAndUpdate(id, updateBranchDto, { new: true }).exec();
-    }
-
-    if (userRole === 'organization_admin' && userOrganizationId) {
-      const branch = await this.branchModel.findById(id).exec();
-      if (branch && branch.organizationId.toString() === userOrganizationId) {
-        return this.branchModel.findByIdAndUpdate(id, updateBranchDto, { new: true }).exec();
+      // Super admin can update any branch
+    } else if (userRole === 'organization_admin' && userOrganizationId) {
+      if (branch.organizationId.toString() !== userOrganizationId) {
+        throw new ForbiddenException('Insufficient permissions');
       }
+    } else if (userRole === 'branch_admin' && userBranchId === id) {
+      // Branch admin can update their own branch
+    } else {
+      throw new ForbiddenException('Insufficient permissions');
     }
 
-    if (userRole === 'branch_admin' && userBranchId === id) {
-      return this.branchModel.findByIdAndUpdate(id, updateBranchDto, { new: true }).exec();
-    }
+    const updatedBranch = await this.branchModel.findByIdAndUpdate(
+      id, 
+      updateBranchDto, 
+      { new: true }
+    ).exec();
 
-    throw new ForbiddenException('Insufficient permissions');
+    console.log('Branch updated:', updatedBranch?._id);
+    return updatedBranch;
   }
 
-  async remove(id: string, userRole: string, userOrganizationId?: string): Promise<Branch | null> {
+  async remove(id: string, userRole: string, userOrganizationId?: string, reason?: string): Promise<Branch | null> {
+    console.log('BranchesService.remove called:', { id, userRole, userOrganizationId, reason });
+    
+    const branch = await this.branchModel.findById(id).exec();
+    if (!branch) {
+      throw new NotFoundException('Branch not found');
+    }
+
+    // Check permissions
     if (userRole === 'super_admin') {
-      return this.branchModel.findByIdAndDelete(id).exec();
-    }
-
-    if (userRole === 'organization_admin' && userOrganizationId) {
-      const branch = await this.branchModel.findById(id).exec();
-      if (branch && branch.organizationId.toString() === userOrganizationId) {
-        return this.branchModel.findByIdAndDelete(id).exec();
+      // Super admin can delete any branch
+    } else if (userRole === 'organization_admin' && userOrganizationId) {
+      if (branch.organizationId.toString() !== userOrganizationId) {
+        throw new ForbiddenException('Insufficient permissions');
       }
+    } else {
+      throw new ForbiddenException('Insufficient permissions');
     }
 
-    throw new ForbiddenException('Insufficient permissions');
+    // Soft delete the branch
+    const updatedBranch = await this.branchModel.findByIdAndUpdate(
+      id,
+      {
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedReason: reason || 'No reason provided'
+      },
+      { new: true }
+    ).exec();
+
+    console.log('Branch soft deleted:', updatedBranch?._id);
+    return updatedBranch;
+  }
+
+  async restore(id: string, userRole: string, userOrganizationId?: string, reason?: string): Promise<Branch | null> {
+    console.log('BranchesService.restore called:', { id, userRole, userOrganizationId, reason });
+    
+    const branch = await this.branchModel.findById(id).exec();
+    if (!branch) {
+      throw new NotFoundException('Branch not found');
+    }
+
+    // Check permissions
+    if (userRole === 'super_admin') {
+      // Super admin can restore any branch
+    } else if (userRole === 'organization_admin' && userOrganizationId) {
+      if (branch.organizationId.toString() !== userOrganizationId) {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+    } else {
+      throw new ForbiddenException('Insufficient permissions');
+    }
+
+    // Restore the branch
+    const restoredBranch = await this.branchModel.findByIdAndUpdate(
+      id,
+      {
+        isDeleted: false,
+        deletedAt: null,
+        deletedReason: null,
+        restoredAt: new Date(),
+        restoredReason: reason || 'No reason provided'
+      },
+      { new: true }
+    ).exec();
+
+    console.log('Branch restored:', restoredBranch?._id);
+    return restoredBranch;
   }
 
   async createBranchAdmin(createBranchAdminDto: any, branchId: string, organizationId: string, createdBy: string): Promise<BranchAdmin> {

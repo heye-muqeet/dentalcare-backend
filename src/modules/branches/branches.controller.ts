@@ -74,13 +74,54 @@ export class BranchesController {
   }
 
   @Patch(':id')
-  update(@Request() req: any, @Param('id') id: string, @Body() updateBranchDto: any) {
-    return this.branchesService.update(id, updateBranchDto, req.user.role, req.user.organizationId, req.user.branchId);
+  async update(@Request() req: any, @Param('id') id: string, @Body() updateBranchDto: any) {
+    try {
+      console.log('Branches controller - update called:', { id, updateData: updateBranchDto, user: req.user });
+      const updatedBranch = await this.branchesService.update(id, updateBranchDto, req.user.role, req.user.organizationId, req.user.branchId);
+      
+      return {
+        success: true,
+        data: updatedBranch,
+        message: 'Branch updated successfully'
+      };
+    } catch (error) {
+      console.error('Branches controller - update error:', error);
+      throw error;
+    }
   }
 
   @Delete(':id')
-  remove(@Request() req: any, @Param('id') id: string) {
-    return this.branchesService.remove(id, req.user.role, req.user.organizationId);
+  async remove(@Request() req: any, @Param('id') id: string, @Body() body?: { reason?: string }) {
+    try {
+      console.log('Branches controller - delete called:', { id, reason: body?.reason, user: req.user });
+      const result = await this.branchesService.remove(id, req.user.role, req.user.organizationId, body?.reason);
+      
+      return {
+        success: true,
+        data: result,
+        message: 'Branch deleted successfully'
+      };
+    } catch (error) {
+      console.error('Branches controller - delete error:', error);
+      throw error;
+    }
+  }
+
+  @Patch(':id/restore')
+  async restore(@Request() req: any, @Param('id') id: string, @Body() body?: { reason?: string }) {
+    try {
+      console.log('Branches controller - restore called:', { id, reason: body?.reason, user: req.user });
+      const result = await this.branchesService.restore(id, req.user.role, req.user.organizationId, body?.reason);
+      
+      return {
+        success: true,
+        data: result,
+        message: 'Branch restored successfully'
+      };
+    } catch (error) {
+      console.error('Branches controller - restore error:', error);
+      throw error;
+    }
   }
 
   @Get(':id/admins')
