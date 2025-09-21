@@ -22,10 +22,6 @@ export interface CreateDoctorDto {
   qualifications?: string[];
   experienceYears?: number;
   languages?: string[];
-  consultationFee?: {
-    amount: number;
-    currency: string;
-  };
   availability?: {
     monday: { start: string; end: string; isAvailable: boolean };
     tuesday: { start: string; end: string; isAvailable: boolean };
@@ -52,10 +48,6 @@ export interface UpdateDoctorDto {
   qualifications?: string[];
   experienceYears?: number;
   languages?: string[];
-  consultationFee?: {
-    amount: number;
-    currency: string;
-  };
   availability?: {
     monday: { start: string; end: string; isAvailable: boolean };
     tuesday: { start: string; end: string; isAvailable: boolean };
