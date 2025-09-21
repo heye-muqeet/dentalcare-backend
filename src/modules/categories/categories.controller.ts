@@ -11,10 +11,18 @@ export class CategoriesController {
   async getCategories(@Request() req: any) {
     try {
       console.log('CategoriesController.getCategories called:', { user: req.user });
+      
+      const user = req.user;
+      const organizationId = typeof user.organizationId === 'string' 
+        ? user.organizationId 
+        : user.organizationId?._id || user.organizationId?.id;
+      
+      console.log('Extracted organizationId:', organizationId);
+      
       const categories = await this.categoriesService.getOrganizationCategories(
-        req.user.organizationId,
-        req.user.role,
-        req.user.branchId
+        organizationId,
+        user.role,
+        user.branchId
       );
       
       return {
@@ -32,11 +40,17 @@ export class CategoriesController {
   async getCategoryById(@Param('id') id: string, @Request() req: any) {
     try {
       console.log('CategoriesController.getCategoryById called:', { categoryId: id, user: req.user });
+      
+      const user = req.user;
+      const organizationId = typeof user.organizationId === 'string' 
+        ? user.organizationId 
+        : user.organizationId?._id || user.organizationId?.id;
+      
       const category = await this.categoriesService.getCategoryById(
         id,
-        req.user.organizationId,
-        req.user.role,
-        req.user.branchId
+        organizationId,
+        user.role,
+        user.branchId
       );
       
       return {
