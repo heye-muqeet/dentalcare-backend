@@ -7,6 +7,7 @@ import { BranchAdmin, BranchAdminSchema } from '../../schemas/branch-admin.schem
 import { Doctor, DoctorSchema } from '../../schemas/doctor.schema';
 import { Receptionist, ReceptionistSchema } from '../../schemas/receptionist.schema';
 import { Patient, PatientSchema } from '../../schemas/patient.schema';
+import { Service, ServiceSchema } from '../../schemas/service.schema';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { Patient, PatientSchema } from '../../schemas/patient.schema';
       { name: Doctor.name, schema: DoctorSchema },
       { name: Receptionist.name, schema: ReceptionistSchema },
       { name: Patient.name, schema: PatientSchema },
+      { name: Service.name, schema: ServiceSchema },
     ]),
   ],
   controllers: [BranchesController],

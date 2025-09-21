@@ -17,6 +17,7 @@ import { SeederModule } from './seeders/seeder.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { SoftDeleteModule } from './modules/soft-delete/soft-delete.module';
+import { CategoriesModule } from './modules/categories/categories.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { SoftDeleteModule } from './modules/soft-delete/soft-delete.module';
     AuditModule,
     DashboardModule,
     SoftDeleteModule,
+    CategoriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -259,4 +259,51 @@ export class BranchesController {
       data: patient
     };
   }
+
+  @Get(':id/services')
+  async getBranchServices(@Request() req: any, @Param('id') id: string) {
+    try {
+      console.log('BranchesController.getBranchServices called:', { branchId: id, user: req.user });
+      const services = await this.branchesService.getBranchServices(id, req.user.role, req.user.organizationId, req.user.branchId);
+      
+      return {
+        success: true,
+        data: services,
+        message: 'Services retrieved successfully'
+      };
+    } catch (error) {
+      console.error('BranchesController.getBranchServices error:', error);
+      throw error;
+    }
+  }
+
+  @Post(':id/services')
+  async createService(
+    @Request() req: any,
+    @Param('id') branchId: string,
+    @Body() createServiceDto: any
+  ) {
+    console.log('BranchesController.createService called:', { branchId, serviceData: createServiceDto });
+    
+    const user = req.user;
+    const organizationId = typeof user.organizationId === 'string' 
+      ? user.organizationId 
+      : user.organizationId?._id || user.organizationId?.id;
+
+    const service = await this.branchesService.createService(
+      createServiceDto,
+      branchId,
+      organizationId,
+      user.userId,
+      user.role,
+      organizationId,
+      user.branchId
+    );
+
+    return {
+      success: true,
+      message: 'Service created successfully',
+      data: service
+    };
+  }
 }

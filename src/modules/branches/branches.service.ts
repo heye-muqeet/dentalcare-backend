@@ -9,6 +9,7 @@ import { BranchAdmin, BranchAdminDocument } from '../../schemas/branch-admin.sch
 import { Doctor, DoctorDocument } from '../../schemas/doctor.schema';
 import { Receptionist, ReceptionistDocument } from '../../schemas/receptionist.schema';
 import { Patient, PatientDocument } from '../../schemas/patient.schema';
+import { Service, ServiceDocument } from '../../schemas/service.schema';
 
 @Injectable()
 export class BranchesService {
@@ -18,6 +19,7 @@ export class BranchesService {
     @InjectModel(Doctor.name) private doctorModel: Model<DoctorDocument>,
     @InjectModel(Receptionist.name) private receptionistModel: Model<ReceptionistDocument>,
     @InjectModel(Patient.name) private patientModel: Model<PatientDocument>,
+    @InjectModel(Service.name) private serviceModel: Model<ServiceDocument>,
   ) {}
 
   async create(createBranchDto: any, createdBy: string, organizationId: string): Promise<Branch> {
@@ -612,6 +614,115 @@ export class BranchesService {
     });
 
     return savedPatient;
+  }
+
+  async getBranchServices(branchId: string, userRole: string, userOrganizationId?: string, userBranchId?: string): Promise<Service[]> {
+    console.log('BranchesService.getBranchServices called:', {
+      branchId,
+      userRole,
+      userOrganizationId,
+      userBranchId
+    });
+
+    const branchObjectId = new Types.ObjectId(branchId);
+    
+    if (userRole === 'super_admin') {
+      const services = await this.serviceModel.find({ branchId: branchObjectId }).populate('branchId organizationId', 'name').exec();
+      console.log('Super admin found services:', services.length);
+      return services;
+    }
+
+    if (userRole === 'organization_admin' && userOrganizationId) {
+      const organizationObjectId = new Types.ObjectId(userOrganizationId);
+      const services = await this.serviceModel.find({ branchId: branchObjectId, organizationId: organizationObjectId }).populate('branchId organizationId', 'name').exec();
+      console.log('Organization admin found services:', services.length);
+      return services;
+    }
+
+    if (userRole === 'branch_admin' && userBranchId === branchId) {
+      const services = await this.serviceModel.find({ branchId: branchObjectId }).populate('branchId organizationId', 'name').exec();
+      console.log('Branch admin found services:', services.length);
+      return services;
+    }
+
+    if (userRole === 'receptionist' && userBranchId === branchId) {
+      const services = await this.serviceModel.find({ branchId: branchObjectId }).populate('branchId organizationId', 'name').exec();
+      console.log('Receptionist found services:', services.length);
+      return services;
+    }
+
+    throw new ForbiddenException('Insufficient permissions');
+  }
+
+  async createService(
+    createServiceDto: any,
+    branchId: string,
+    organizationId: string,
+    createdBy: string,
+    userRole: string,
+    userOrganizationId?: string,
+    userBranchId?: string
+  ): Promise<Service> {
+    console.log('BranchesService.createService called:', {
+      branchId,
+      organizationId,
+      createdBy,
+      userRole,
+      serviceName: createServiceDto.name
+    });
+
+    // Check permissions
+    if (userRole === 'super_admin') {
+      // Super admin can create services in any branch
+    } else if (userRole === 'organization_admin' && userOrganizationId === organizationId) {
+      // Organization admin can create services in their organization's branches
+    } else if (userRole === 'branch_admin' && userBranchId === branchId) {
+      // Branch admin can create services in their own branch
+    } else if (userRole === 'receptionist' && userBranchId === branchId) {
+      // Receptionist can create services in their own branch
+    } else {
+      throw new ForbiddenException('Insufficient permissions to create service');
+    }
+
+    // Check if branch exists
+    const branch = await this.branchModel.findById(branchId).exec();
+    if (!branch) {
+      throw new NotFoundException('Branch not found');
+    }
+
+    // Check if service name already exists in this branch
+    const existingService = await this.serviceModel.findOne({ 
+      name: createServiceDto.name, 
+      branchId: new Types.ObjectId(branchId) 
+    }).exec();
+    if (existingService) {
+      throw new ConflictException('Service with this name already exists in this branch');
+    }
+
+    // Create service
+    const serviceData = {
+      ...createServiceDto,
+      branchId: new Types.ObjectId(branchId),
+      organizationId: new Types.ObjectId(organizationId),
+      createdBy: new Types.ObjectId(createdBy)
+    };
+
+    console.log('Creating service with data:', {
+      name: serviceData.name,
+      category: serviceData.category,
+      branchId: serviceData.branchId.toString(),
+      organizationId: serviceData.organizationId.toString()
+    });
+
+    const service = new this.serviceModel(serviceData);
+    const savedService = await service.save();
+    console.log('Service created successfully:', {
+      id: savedService._id,
+      name: savedService.name,
+      branchId: savedService.branchId.toString()
+    });
+
+    return savedService;
   }
 
   async getBranchesStats(userRole: string, userOrganizationId?: string): Promise<any> {
