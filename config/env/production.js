@@ -47,30 +47,15 @@ module.exports = {
     *                                                                          *
     ***************************************************************************/
     default: {
-      // adapter: 'sails-mysql',
-      // url: 'mysql://user:password@host:port/database',
+      adapter: 'sails-mongo',
+      url: process.env.DATABASE_URL,
       //--------------------------------------------------------------------------
-      //  /\   To avoid checking it in to version control, you might opt to set
-      //  ||   sensitive credentials like `url` using an environment variable.
+      //  /\   Using environment variable for Railway MongoDB connection
+      //  ||   The DATABASE_URL is set in the .env file with Railway credentials
       //
-      //  For example:
-      //  ```
-      //  sails_datastores__default__url=mysql://admin:myc00lpAssw2D@db.example.com:3306/my_prod_db
-      //  ```
+      //  Railway MongoDB configuration:
+      //  DATABASE_URL="mongodb://mongo:xPejAnjbpevohgTBaeRgAVJrFDDiIzqk@railway_domain:27017"
       //--------------------------------------------------------------------------
-
-      /****************************************************************************
-      *                                                                           *
-      * More adapter-specific options                                             *
-      *                                                                           *
-      * > For example, for some hosted PostgreSQL providers (like Heroku), the    *
-      * > extra `ssl` object with a `rejectUnauthorized` option must be provided. *
-      *                                                                           *
-      * More info:                                                                *
-      * https://sailsjs.com/config/datastores                                     *
-      *                                                                           *
-      ****************************************************************************/
-      // ssl: { rejectUnauthorized: true },
 
     },
 
