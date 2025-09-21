@@ -30,7 +30,7 @@ module.exports.security = {
 
   cors: {
     allRoutes: true,
-    allowOrigins: ['http://localhost:5173', 'https://dental-frontend-drab.vercel.app'],
+    allowOrigins: ['http://localhost:3000', 'http://localhost:5173', 'https://dental-frontend-drab.vercel.app'],
     allowCredentials: true,
   },
 
