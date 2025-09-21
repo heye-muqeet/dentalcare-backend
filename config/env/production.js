@@ -133,9 +133,10 @@ module.exports = {
     *                                                                          *
     ***************************************************************************/
     cors: {
-      // allowOrigins: [
-      //   'https://example.com',
-      // ]
+      allowOrigins: [
+        'https://dentalcare-frontend.vercel.app',
+        'https://dental-frontend-drab.vercel.app'
+      ]
     },
 
   },
@@ -250,7 +251,11 @@ module.exports = {
     * > Be sure to use the right protocol!  ("http://" vs. "https://")         *
     *                                                                          *
     ***************************************************************************/
-    onlyAllowOrigins: ["http://localhost:5173"]
+    onlyAllowOrigins: [
+      "http://localhost:5173",
+      "https://dentalcare-frontend.vercel.app",
+      "https://dental-frontend-drab.vercel.app"
+    ]
 
 
 
