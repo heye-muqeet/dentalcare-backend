@@ -163,23 +163,71 @@ export class BranchesController {
   }
 
   @Get(':id/admins')
-  getBranchAdmins(@Request() req: any, @Param('id') id: string) {
-    return this.branchesService.getBranchAdmins(id, req.user.role, req.user.organizationId, req.user.branchId);
+  async getBranchAdmins(@Request() req: any, @Param('id') id: string) {
+    try {
+      console.log('BranchesController.getBranchAdmins called:', { branchId: id, user: req.user });
+      const admins = await this.branchesService.getBranchAdmins(id, req.user.role, req.user.organizationId, req.user.branchId);
+      
+      return {
+        success: true,
+        data: admins,
+        message: 'Branch admins retrieved successfully'
+      };
+    } catch (error) {
+      console.error('BranchesController.getBranchAdmins error:', error);
+      throw error;
+    }
   }
 
   @Get(':id/doctors')
-  getBranchDoctors(@Request() req: any, @Param('id') id: string) {
-    return this.branchesService.getBranchDoctors(id, req.user.role, req.user.organizationId, req.user.branchId);
+  async getBranchDoctors(@Request() req: any, @Param('id') id: string) {
+    try {
+      console.log('BranchesController.getBranchDoctors called:', { branchId: id, user: req.user });
+      const doctors = await this.branchesService.getBranchDoctors(id, req.user.role, req.user.organizationId, req.user.branchId);
+      
+      return {
+        success: true,
+        data: doctors,
+        message: 'Doctors retrieved successfully'
+      };
+    } catch (error) {
+      console.error('BranchesController.getBranchDoctors error:', error);
+      throw error;
+    }
   }
 
   @Get(':id/receptionists')
-  getBranchReceptionists(@Request() req: any, @Param('id') id: string) {
-    return this.branchesService.getBranchReceptionists(id, req.user.role, req.user.organizationId, req.user.branchId);
+  async getBranchReceptionists(@Request() req: any, @Param('id') id: string) {
+    try {
+      console.log('BranchesController.getBranchReceptionists called:', { branchId: id, user: req.user });
+      const receptionists = await this.branchesService.getBranchReceptionists(id, req.user.role, req.user.organizationId, req.user.branchId);
+      
+      return {
+        success: true,
+        data: receptionists,
+        message: 'Receptionists retrieved successfully'
+      };
+    } catch (error) {
+      console.error('BranchesController.getBranchReceptionists error:', error);
+      throw error;
+    }
   }
 
   @Get(':id/patients')
-  getBranchPatients(@Request() req: any, @Param('id') id: string) {
-    return this.branchesService.getBranchPatients(id, req.user.role, req.user.organizationId, req.user.branchId);
+  async getBranchPatients(@Request() req: any, @Param('id') id: string) {
+    try {
+      console.log('BranchesController.getBranchPatients called:', { branchId: id, user: req.user });
+      const patients = await this.branchesService.getBranchPatients(id, req.user.role, req.user.organizationId, req.user.branchId);
+      
+      return {
+        success: true,
+        data: patients,
+        message: 'Patients retrieved successfully'
+      };
+    } catch (error) {
+      console.error('BranchesController.getBranchPatients error:', error);
+      throw error;
+    }
   }
 
   @Post(':id/patients')

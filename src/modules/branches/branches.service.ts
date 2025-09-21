@@ -500,20 +500,38 @@ export class BranchesService {
   }
 
   async getBranchPatients(branchId: string, userRole: string, userOrganizationId?: string, userBranchId?: string): Promise<Patient[]> {
+    console.log('BranchesService.getBranchPatients called:', {
+      branchId,
+      userRole,
+      userOrganizationId,
+      userBranchId
+    });
+
+    const branchObjectId = new Types.ObjectId(branchId);
+    
     if (userRole === 'super_admin') {
-      return this.patientModel.find({ branchId }).populate('branchId organizationId', 'name').exec();
+      const patients = await this.patientModel.find({ branchId: branchObjectId }).populate('branchId organizationId', 'name').exec();
+      console.log('Super admin found patients:', patients.length);
+      return patients;
     }
 
     if (userRole === 'organization_admin' && userOrganizationId) {
-      return this.patientModel.find({ branchId, organizationId: userOrganizationId }).populate('branchId organizationId', 'name').exec();
+      const organizationObjectId = new Types.ObjectId(userOrganizationId);
+      const patients = await this.patientModel.find({ branchId: branchObjectId, organizationId: organizationObjectId }).populate('branchId organizationId', 'name').exec();
+      console.log('Organization admin found patients:', patients.length);
+      return patients;
     }
 
     if (userRole === 'branch_admin' && userBranchId === branchId) {
-      return this.patientModel.find({ branchId }).populate('branchId organizationId', 'name').exec();
+      const patients = await this.patientModel.find({ branchId: branchObjectId }).populate('branchId organizationId', 'name').exec();
+      console.log('Branch admin found patients:', patients.length);
+      return patients;
     }
 
     if (userRole === 'receptionist' && userBranchId === branchId) {
-      return this.patientModel.find({ branchId }).populate('branchId organizationId', 'name').exec();
+      const patients = await this.patientModel.find({ branchId: branchObjectId }).populate('branchId organizationId', 'name').exec();
+      console.log('Receptionist found patients:', patients.length);
+      return patients;
     }
 
     throw new ForbiddenException('Insufficient permissions');
@@ -566,7 +584,7 @@ export class BranchesService {
     const hashedPassword = await bcrypt.hash(defaultPassword, saltRounds);
 
     // Create patient
-    const patient = new this.patientModel({
+    const patientData = {
       ...createPatientDto,
       password: hashedPassword,
       branchId: new Types.ObjectId(branchId),
@@ -575,10 +593,23 @@ export class BranchesService {
       dateOfBirth: createPatientDto.dateOfBirth ? new Date(createPatientDto.dateOfBirth) : undefined,
       role: 'patient',
       isActive: true
+    };
+
+    console.log('Creating patient with data:', {
+      firstName: patientData.firstName,
+      lastName: patientData.lastName,
+      email: patientData.email,
+      branchId: patientData.branchId.toString(),
+      organizationId: patientData.organizationId.toString()
     });
 
+    const patient = new this.patientModel(patientData);
     const savedPatient = await patient.save();
-    console.log('Patient created successfully:', savedPatient._id);
+    console.log('Patient created successfully:', {
+      id: savedPatient._id,
+      name: `${savedPatient.firstName} ${savedPatient.lastName}`,
+      branchId: savedPatient.branchId.toString()
+    });
 
     return savedPatient;
   }
