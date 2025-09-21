@@ -172,6 +172,10 @@ export class CategoriesService {
       { new: true }
     ).exec();
 
+    if (!updatedCategory) {
+      throw new NotFoundException('Category not found after update');
+    }
+
     console.log('Category updated successfully:', {
       id: updatedCategory._id,
       name: updatedCategory.name
@@ -265,6 +269,10 @@ export class CategoriesService {
       { isDeleted: false, deletedAt: null },
       { new: true }
     ).exec();
+
+    if (!restoredCategory) {
+      throw new NotFoundException('Category not found after restore');
+    }
 
     console.log('Category restored successfully:', {
       id: restoredCategory._id,
