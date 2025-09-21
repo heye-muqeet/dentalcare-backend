@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
@@ -517,6 +517,70 @@ export class BranchesService {
     }
 
     throw new ForbiddenException('Insufficient permissions');
+  }
+
+  async createPatient(
+    createPatientDto: any,
+    branchId: string,
+    organizationId: string,
+    createdBy: string,
+    userRole: string,
+    userOrganizationId?: string,
+    userBranchId?: string
+  ): Promise<Patient> {
+    console.log('BranchesService.createPatient called:', {
+      branchId,
+      organizationId,
+      createdBy,
+      userRole,
+      patientEmail: createPatientDto.email
+    });
+
+    // Check permissions
+    if (userRole === 'super_admin') {
+      // Super admin can create patients in any branch
+    } else if (userRole === 'organization_admin' && userOrganizationId === organizationId) {
+      // Organization admin can create patients in their organization's branches
+    } else if (userRole === 'branch_admin' && userBranchId === branchId) {
+      // Branch admin can create patients in their own branch
+    } else if (userRole === 'receptionist' && userBranchId === branchId) {
+      // Receptionist can create patients in their own branch
+    } else {
+      throw new ForbiddenException('Insufficient permissions to create patient');
+    }
+
+    // Check if branch exists
+    const branch = await this.branchModel.findById(branchId).exec();
+    if (!branch) {
+      throw new NotFoundException('Branch not found');
+    }
+
+    // Check if email already exists
+    const existingPatient = await this.patientModel.findOne({ email: createPatientDto.email }).exec();
+    if (existingPatient) {
+      throw new ConflictException('Patient with this email already exists');
+    }
+
+    // Generate a default password (patients will set their own password later)
+    const defaultPassword = 'patient123'; // You might want to generate a random password
+    const hashedPassword = await bcrypt.hash(defaultPassword, saltRounds);
+
+    // Create patient
+    const patient = new this.patientModel({
+      ...createPatientDto,
+      password: hashedPassword,
+      branchId: new Types.ObjectId(branchId),
+      organizationId: new Types.ObjectId(organizationId),
+      registeredBy: new Types.ObjectId(createdBy),
+      dateOfBirth: createPatientDto.dateOfBirth ? new Date(createPatientDto.dateOfBirth) : undefined,
+      role: 'patient',
+      isActive: true
+    });
+
+    const savedPatient = await patient.save();
+    console.log('Patient created successfully:', savedPatient._id);
+
+    return savedPatient;
   }
 
   async getBranchesStats(userRole: string, userOrganizationId?: string): Promise<any> {

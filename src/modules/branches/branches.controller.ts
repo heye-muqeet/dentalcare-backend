@@ -181,4 +181,34 @@ export class BranchesController {
   getBranchPatients(@Request() req: any, @Param('id') id: string) {
     return this.branchesService.getBranchPatients(id, req.user.role, req.user.organizationId, req.user.branchId);
   }
+
+  @Post(':id/patients')
+  async createPatient(
+    @Request() req: any,
+    @Param('id') branchId: string,
+    @Body() createPatientDto: any
+  ) {
+    console.log('BranchesController.createPatient called:', { branchId, patientData: createPatientDto });
+    
+    const user = req.user;
+    const organizationId = typeof user.organizationId === 'string' 
+      ? user.organizationId 
+      : user.organizationId?._id || user.organizationId?.id;
+
+    const patient = await this.branchesService.createPatient(
+      createPatientDto,
+      branchId,
+      organizationId,
+      user.userId,
+      user.role,
+      organizationId,
+      user.branchId
+    );
+
+    return {
+      success: true,
+      message: 'Patient created successfully',
+      data: patient
+    };
+  }
 }

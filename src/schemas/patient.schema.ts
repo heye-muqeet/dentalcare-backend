@@ -48,6 +48,12 @@ export class Patient extends SoftDeleteMixin {
   @Prop({ trim: true })
   address?: string;
 
+  @Prop({ trim: true })
+  area?: string;
+
+  @Prop({ trim: true })
+  city?: string;
+
   @Prop({ type: Date })
   dateOfBirth?: Date;
 
