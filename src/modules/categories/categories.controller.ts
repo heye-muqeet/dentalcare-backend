@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Request, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Request, UseGuards, ForbiddenException } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { CategoriesService } from './categories.service';
 
@@ -159,4 +159,5 @@ export class CategoriesController {
       data: category
     };
   }
+
 }

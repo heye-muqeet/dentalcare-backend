@@ -18,6 +18,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { SoftDeleteModule } from './modules/soft-delete/soft-delete.module';
 import { CategoriesModule } from './modules/categories/categories.module';
+import { AppointmentsModule } from './modules/appointments/appointments.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { CategoriesModule } from './modules/categories/categories.module';
     DashboardModule,
     SoftDeleteModule,
     CategoriesModule,
+    AppointmentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

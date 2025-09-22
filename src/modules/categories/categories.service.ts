@@ -21,26 +21,11 @@ export class CategoriesService {
       userBranchId
     });
 
-    // Special handling for super_admin - they can see all categories from all organizations
-    if (userRole === 'super_admin') {
-      console.log('Super admin detected - fetching all categories');
-      const categories = await this.categoryModel.find({ 
-        isDeleted: false 
-      }).sort({ name: 1 }).populate('organizationId', 'name').exec();
-      
-      console.log('Super admin categories found:', categories.length);
-      console.log('Categories found:', categories.map(cat => ({
-        id: cat._id,
-        name: cat.name,
-        organizationId: cat.organizationId
-      })));
-      
-      return categories;
-    }
+    // Categories are organization-specific, no special handling for super_admin
 
-    // For non-super admin users, organizationId is required
+    // OrganizationId is required for all users
     if (!organizationId || organizationId === 'undefined') {
-      console.log('No valid organizationId provided for non-super admin user');
+      console.log('No valid organizationId provided');
       return [];
     }
 
@@ -91,19 +76,17 @@ export class CategoriesService {
 
     const categoryObjectId = new Types.ObjectId(categoryId);
     
-    let query: any = {
+    if (!organizationId || organizationId === 'undefined') {
+      throw new NotFoundException('Organization ID required');
+    }
+    
+    const organizationObjectId = new Types.ObjectId(organizationId);
+    
+    const query: any = {
       _id: categoryObjectId,
+      organizationId: organizationObjectId,
       isDeleted: false
     };
-
-    // Super admin can access categories from any organization
-    if (userRole !== 'super_admin') {
-      if (!organizationId || organizationId === 'undefined') {
-        throw new NotFoundException('Organization ID required for non-super admin users');
-      }
-      const organizationObjectId = new Types.ObjectId(organizationId);
-      query.organizationId = organizationObjectId;
-    }
     
     const category = await this.categoryModel.findOne(query).exec();
 
@@ -128,21 +111,13 @@ export class CategoriesService {
       categoryName: createCategoryDto.name
     });
 
-    // Check permissions - only organization_admin and super_admin can create categories
-    if (userRole === 'super_admin') {
-      // Super admin can create categories for any organization
-      // For super admin, organizationId must be provided in the request body
-      if (!createCategoryDto.organizationId) {
-        throw new ForbiddenException('Super admin must specify organizationId when creating categories');
-      }
-      organizationId = createCategoryDto.organizationId;
-    } else if (userRole === 'organization_admin') {
-      // Organization admin can create categories for their organization
-      if (!organizationId || organizationId === 'undefined') {
-        throw new ForbiddenException('Organization admin must have valid organizationId');
-      }
-    } else {
-      throw new ForbiddenException('Insufficient permissions to create category');
+    // Check permissions - only organization_admin can create categories
+    if (userRole !== 'organization_admin') {
+      throw new ForbiddenException('Only organization administrators can create categories');
+    }
+
+    if (!organizationId || organizationId === 'undefined') {
+      throw new ForbiddenException('Organization ID is required');
     }
 
     const organizationObjectId = new Types.ObjectId(organizationId);
@@ -193,30 +168,23 @@ export class CategoriesService {
       userRole
     });
 
-    // Check permissions
-    if (userRole === 'super_admin') {
-      // Super admin can update categories for any organization
-    } else if (userRole === 'organization_admin') {
-      // Organization admin can update categories for their organization
-      if (!organizationId || organizationId === 'undefined') {
-        throw new ForbiddenException('Organization admin must have valid organizationId');
-      }
-    } else {
-      throw new ForbiddenException('Insufficient permissions to update category');
+    // Check permissions - only organization_admin can update categories
+    if (userRole !== 'organization_admin') {
+      throw new ForbiddenException('Only organization administrators can update categories');
+    }
+
+    if (!organizationId || organizationId === 'undefined') {
+      throw new ForbiddenException('Organization ID is required');
     }
 
     const categoryObjectId = new Types.ObjectId(categoryId);
+    const organizationObjectId = new Types.ObjectId(organizationId);
     
-    let query: any = {
+    const query: any = {
       _id: categoryObjectId,
+      organizationId: organizationObjectId,
       isDeleted: false
     };
-
-    // Super admin can access categories from any organization
-    if (userRole !== 'super_admin') {
-      const organizationObjectId = new Types.ObjectId(organizationId);
-      query.organizationId = organizationObjectId;
-    }
 
     // Check if category exists
     const existingCategory = await this.categoryModel.findOne(query).exec();
@@ -271,30 +239,23 @@ export class CategoriesService {
       userRole
     });
 
-    // Check permissions
-    if (userRole === 'super_admin') {
-      // Super admin can delete categories for any organization
-    } else if (userRole === 'organization_admin') {
-      // Organization admin can delete categories for their organization
-      if (!organizationId || organizationId === 'undefined') {
-        throw new ForbiddenException('Organization admin must have valid organizationId');
-      }
-    } else {
-      throw new ForbiddenException('Insufficient permissions to delete category');
+    // Check permissions - only organization_admin can delete categories
+    if (userRole !== 'organization_admin') {
+      throw new ForbiddenException('Only organization administrators can delete categories');
+    }
+
+    if (!organizationId || organizationId === 'undefined') {
+      throw new ForbiddenException('Organization ID is required');
     }
 
     const categoryObjectId = new Types.ObjectId(categoryId);
+    const organizationObjectId = new Types.ObjectId(organizationId);
     
-    let query: any = {
+    const query: any = {
       _id: categoryObjectId,
+      organizationId: organizationObjectId,
       isDeleted: false
     };
-
-    // Super admin can access categories from any organization
-    if (userRole !== 'super_admin') {
-      const organizationObjectId = new Types.ObjectId(organizationId);
-      query.organizationId = organizationObjectId;
-    }
 
     // Check if category exists
     const category = await this.categoryModel.findOne(query).exec();
@@ -325,30 +286,23 @@ export class CategoriesService {
       userRole
     });
 
-    // Check permissions
-    if (userRole === 'super_admin') {
-      // Super admin can restore categories for any organization
-    } else if (userRole === 'organization_admin') {
-      // Organization admin can restore categories for their organization
-      if (!organizationId || organizationId === 'undefined') {
-        throw new ForbiddenException('Organization admin must have valid organizationId');
-      }
-    } else {
-      throw new ForbiddenException('Insufficient permissions to restore category');
+    // Check permissions - only organization_admin can restore categories
+    if (userRole !== 'organization_admin') {
+      throw new ForbiddenException('Only organization administrators can restore categories');
+    }
+
+    if (!organizationId || organizationId === 'undefined') {
+      throw new ForbiddenException('Organization ID is required');
     }
 
     const categoryObjectId = new Types.ObjectId(categoryId);
+    const organizationObjectId = new Types.ObjectId(organizationId);
     
-    let query: any = {
+    const query: any = {
       _id: categoryObjectId,
+      organizationId: organizationObjectId,
       isDeleted: true
     };
-
-    // Super admin can access categories from any organization
-    if (userRole !== 'super_admin') {
-      const organizationObjectId = new Types.ObjectId(organizationId);
-      query.organizationId = organizationObjectId;
-    }
 
     // Check if category exists and is deleted
     const category = await this.categoryModel.findOne(query).exec();
@@ -389,4 +343,5 @@ export class CategoriesService {
       { $inc: { usageCount: -1 } }
     ).exec();
   }
+
 }

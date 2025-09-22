@@ -626,19 +626,7 @@ export class BranchesService {
 
     const branchObjectId = new Types.ObjectId(branchId);
     
-    if (userRole === 'super_admin') {
-      const services = await this.serviceModel.find({ branchId: branchObjectId }).populate('branchId organizationId', 'name').exec();
-      console.log('Super admin found services:', services.length);
-      return services;
-    }
-
-    if (userRole === 'organization_admin' && userOrganizationId) {
-      const organizationObjectId = new Types.ObjectId(userOrganizationId);
-      const services = await this.serviceModel.find({ branchId: branchObjectId, organizationId: organizationObjectId }).populate('branchId organizationId', 'name').exec();
-      console.log('Organization admin found services:', services.length);
-      return services;
-    }
-
+    // Services are branch-specific - only users from the same branch can view them
     if (userRole === 'branch_admin' && userBranchId === branchId) {
       const services = await this.serviceModel.find({ branchId: branchObjectId }).populate('branchId organizationId', 'name').exec();
       console.log('Branch admin found services:', services.length);
@@ -651,7 +639,197 @@ export class BranchesService {
       return services;
     }
 
+    if (userRole === 'doctor' && userBranchId === branchId) {
+      const services = await this.serviceModel.find({ branchId: branchObjectId }).populate('branchId organizationId', 'name').exec();
+      console.log('Doctor found services:', services.length);
+      return services;
+    }
+
     throw new ForbiddenException('Insufficient permissions');
+  }
+
+  async getOrganizationServices(organizationId: string, userRole: string): Promise<Service[]> {
+    try {
+      console.log('BranchesService.getOrganizationServices called:', {
+        organizationId,
+        userRole
+      });
+
+      // Only organization_admin can view all services across their organization
+      if (userRole !== 'organization_admin') {
+        console.log('User role is not organization_admin:', userRole);
+        throw new ForbiddenException('Only organization administrators can view all organization services');
+      }
+
+      console.log('User role:', userRole);
+      console.log('Organization ID:', organizationId);
+      
+      // Check if organizationId is valid
+      if (!organizationId || organizationId === 'undefined' || organizationId === 'null') {
+        console.log('Invalid organizationId:', organizationId);
+        throw new ForbiddenException('Valid organization ID is required');
+      }
+
+      const organizationObjectId = new Types.ObjectId(organizationId);
+      console.log('Converted organizationObjectId:', organizationObjectId.toString());
+      
+      // Get all services from all branches in the organization
+      const services = await this.serviceModel
+        .find({ organizationId: organizationObjectId })
+        .populate('branchId', 'name address')
+        .populate('organizationId', 'name')
+        .sort({ 'branchId.name': 1, name: 1 })
+        .exec();
+
+      console.log('Organization services found:', services.length);
+      console.log('Services data:', services);
+      return services;
+    } catch (error) {
+      console.error('Error in getOrganizationServices service method:', error);
+      throw error;
+    }
+  }
+
+  async updateService(
+    serviceId: string,
+    updateServiceDto: any,
+    userRole: string,
+    userOrganizationId?: string,
+    userBranchId?: string
+  ): Promise<Service> {
+    console.log('BranchesService.updateService called:', {
+      serviceId,
+      userRole,
+      serviceName: updateServiceDto.name
+    });
+
+    const service = await this.serviceModel.findById(serviceId).exec();
+    if (!service || service.isDeleted) {
+      throw new NotFoundException('Service not found');
+    }
+
+    // Check permissions
+    if (userRole === 'organization_admin' && userOrganizationId) {
+      if (service.organizationId.toString() !== userOrganizationId) {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+    } else if (userRole === 'branch_admin' && userBranchId) {
+      if (service.branchId.toString() !== userBranchId) {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+    } else if (userRole === 'receptionist' && userBranchId) {
+      if (service.branchId.toString() !== userBranchId) {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+    } else {
+      throw new ForbiddenException('Insufficient permissions to update service');
+    }
+
+    // Update service
+    const updatedService = await this.serviceModel.findByIdAndUpdate(
+      serviceId,
+      { ...updateServiceDto, updatedAt: new Date() },
+      { new: true }
+    ).populate('branchId organizationId', 'name').exec();
+
+    console.log('Service updated successfully:', updatedService?._id);
+    return updatedService!;
+  }
+
+  async deleteService(
+    serviceId: string,
+    userRole: string,
+    userOrganizationId?: string,
+    userBranchId?: string,
+    deletedBy?: string
+  ): Promise<{ message: string }> {
+    console.log('BranchesService.deleteService called:', {
+      serviceId,
+      userRole
+    });
+
+    const service = await this.serviceModel.findById(serviceId).exec();
+    if (!service || service.isDeleted) {
+      throw new NotFoundException('Service not found');
+    }
+
+    // Check permissions
+    if (userRole === 'organization_admin' && userOrganizationId) {
+      if (service.organizationId.toString() !== userOrganizationId) {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+    } else if (userRole === 'branch_admin' && userBranchId) {
+      if (service.branchId.toString() !== userBranchId) {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+    } else if (userRole === 'receptionist' && userBranchId) {
+      if (service.branchId.toString() !== userBranchId) {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+    } else {
+      throw new ForbiddenException('Insufficient permissions to delete service');
+    }
+
+    // Soft delete the service
+    await this.serviceModel.findByIdAndUpdate(serviceId, {
+      isDeleted: true,
+      deletedAt: new Date(),
+      deletedBy: deletedBy ? new Types.ObjectId(deletedBy) : undefined
+    }).exec();
+
+    console.log('Service soft deleted successfully:', serviceId);
+    return { message: 'Service deleted successfully' };
+  }
+
+  async restoreService(
+    serviceId: string,
+    userRole: string,
+    userOrganizationId?: string,
+    userBranchId?: string,
+    restoredBy?: string
+  ): Promise<Service> {
+    console.log('BranchesService.restoreService called:', {
+      serviceId,
+      userRole
+    });
+
+    const service = await this.serviceModel.findById(serviceId).exec();
+    if (!service || !service.isDeleted) {
+      throw new NotFoundException('Service not found or not deleted');
+    }
+
+    // Check permissions
+    if (userRole === 'organization_admin' && userOrganizationId) {
+      if (service.organizationId.toString() !== userOrganizationId) {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+    } else if (userRole === 'branch_admin' && userBranchId) {
+      if (service.branchId.toString() !== userBranchId) {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+    } else if (userRole === 'receptionist' && userBranchId) {
+      if (service.branchId.toString() !== userBranchId) {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+    } else {
+      throw new ForbiddenException('Insufficient permissions to restore service');
+    }
+
+    // Restore the service
+    const restoredService = await this.serviceModel.findByIdAndUpdate(
+      serviceId,
+      {
+        isDeleted: false,
+        deletedAt: undefined,
+        deletedBy: undefined,
+        restoredAt: new Date(),
+        restoredBy: restoredBy ? new Types.ObjectId(restoredBy) : undefined
+      },
+      { new: true }
+    ).populate('branchId organizationId', 'name').exec();
+
+    console.log('Service restored successfully:', restoredService?._id);
+    return restoredService!;
   }
 
   async createService(
@@ -671,17 +849,15 @@ export class BranchesService {
       serviceName: createServiceDto.name
     });
 
-    // Check permissions
-    if (userRole === 'super_admin') {
-      // Super admin can create services in any branch
-    } else if (userRole === 'organization_admin' && userOrganizationId === organizationId) {
-      // Organization admin can create services in their organization's branches
+    // Check permissions - organization_admin, branch_admin and receptionist can create services
+    if (userRole === 'organization_admin' && userOrganizationId === organizationId) {
+      // Organization admin can create services in any branch of their organization
     } else if (userRole === 'branch_admin' && userBranchId === branchId) {
       // Branch admin can create services in their own branch
     } else if (userRole === 'receptionist' && userBranchId === branchId) {
       // Receptionist can create services in their own branch
     } else {
-      throw new ForbiddenException('Insufficient permissions to create service');
+      throw new ForbiddenException('Only organization administrators, branch administrators and receptionists can create services');
     }
 
     // Check if branch exists

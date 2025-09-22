@@ -94,6 +94,36 @@ export class BranchesController {
     return this.branchesService.getBranchStats(id, req.user.role, req.user.organizationId, req.user.branchId);
   }
 
+  @Get('organization-services')
+  async getOrganizationServices(@Request() req: any) {
+    try {
+      console.log('BranchesController.getOrganizationServices called');
+      console.log('User from request:', req.user);
+      
+      const user = req.user;
+      const organizationId = typeof user.organizationId === 'string' 
+        ? user.organizationId 
+        : user.organizationId?._id || user.organizationId?.id;
+
+      console.log('Extracted organizationId:', organizationId);
+      console.log('User role:', user.role);
+
+      const services = await this.branchesService.getOrganizationServices(
+        organizationId,
+        user.role
+      );
+
+      return {
+        success: true,
+        data: services,
+        message: 'Organization services retrieved successfully'
+      };
+    } catch (error) {
+      console.error('Error in getOrganizationServices:', error);
+      throw error;
+    }
+  }
+
   @Get(':id')
   async findOne(@Request() req: any, @Param('id') id: string) {
     try {
@@ -303,6 +333,87 @@ export class BranchesController {
     return {
       success: true,
       message: 'Service created successfully',
+      data: service
+    };
+  }
+
+  @Patch('services/:serviceId')
+  async updateService(
+    @Request() req: any,
+    @Param('serviceId') serviceId: string,
+    @Body() updateServiceDto: any
+  ) {
+    console.log('BranchesController.updateService called:', { serviceId, serviceData: updateServiceDto });
+    
+    const user = req.user;
+    const organizationId = typeof user.organizationId === 'string' 
+      ? user.organizationId 
+      : user.organizationId?._id || user.organizationId?.id;
+
+    const service = await this.branchesService.updateService(
+      serviceId,
+      updateServiceDto,
+      user.role,
+      organizationId,
+      user.branchId
+    );
+
+    return {
+      success: true,
+      message: 'Service updated successfully',
+      data: service
+    };
+  }
+
+  @Delete('services/:serviceId')
+  async deleteService(
+    @Request() req: any,
+    @Param('serviceId') serviceId: string
+  ) {
+    console.log('BranchesController.deleteService called:', { serviceId });
+    
+    const user = req.user;
+    const organizationId = typeof user.organizationId === 'string' 
+      ? user.organizationId 
+      : user.organizationId?._id || user.organizationId?.id;
+
+    const result = await this.branchesService.deleteService(
+      serviceId,
+      user.role,
+      organizationId,
+      user.branchId,
+      user.userId
+    );
+
+    return {
+      success: true,
+      message: result.message
+    };
+  }
+
+  @Patch('services/:serviceId/restore')
+  async restoreService(
+    @Request() req: any,
+    @Param('serviceId') serviceId: string
+  ) {
+    console.log('BranchesController.restoreService called:', { serviceId });
+    
+    const user = req.user;
+    const organizationId = typeof user.organizationId === 'string' 
+      ? user.organizationId 
+      : user.organizationId?._id || user.organizationId?.id;
+
+    const service = await this.branchesService.restoreService(
+      serviceId,
+      user.role,
+      organizationId,
+      user.branchId,
+      user.userId
+    );
+
+    return {
+      success: true,
+      message: 'Service restored successfully',
       data: service
     };
   }
