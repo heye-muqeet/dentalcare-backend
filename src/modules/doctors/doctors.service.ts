@@ -147,6 +147,8 @@ export class DoctorsService {
       }
     } else if (userRole === 'branch_admin' && userBranchId === branchId) {
       // Branch admin can view doctors in their own branch
+    } else if (userRole === 'receptionist' && userBranchId === branchId) {
+      // Receptionist can view doctors in their own branch
     } else {
       throw new ForbiddenException('Insufficient permissions');
     }
@@ -193,6 +195,10 @@ export class DoctorsService {
         throw new ForbiddenException('Insufficient permissions');
       }
     } else if (userRole === 'branch_admin' && userBranchId) {
+      if (doctor.branchId.toString() !== userBranchId) {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+    } else if (userRole === 'receptionist' && userBranchId) {
       if (doctor.branchId.toString() !== userBranchId) {
         throw new ForbiddenException('Insufficient permissions');
       }

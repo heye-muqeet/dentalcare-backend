@@ -482,6 +482,10 @@ export class BranchesService {
       return this.doctorModel.find({ branchId }).populate('branchId organizationId', 'name').exec();
     }
 
+    if (userRole === 'receptionist' && userBranchId === branchId) {
+      return this.doctorModel.find({ branchId }).populate('branchId organizationId', 'name').exec();
+    }
+
     throw new ForbiddenException('Insufficient permissions');
   }
 

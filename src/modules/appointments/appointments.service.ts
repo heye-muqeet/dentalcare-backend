@@ -12,11 +12,13 @@ export interface CreateAppointmentDto {
   doctorId?: string;
   appointmentDate: string; // ISO date string
   startTime: string; // HH:MM format
+  endTime?: string; // HH:MM format, calculated if not provided
   visitType: VisitType;
   reasonForVisit: string;
   notes?: string;
   duration?: number; // in minutes, defaults to 30
   isEmergency?: boolean;
+  isWalkIn?: boolean; // Derived from visitType
   metadata?: {
     source?: string;
     priority?: 'low' | 'normal' | 'high' | 'urgent';
@@ -123,7 +125,7 @@ export class AppointmentsService {
     // Parse appointment date and time
     const appointmentDate = new Date(createAppointmentDto.appointmentDate);
     const duration = createAppointmentDto.duration || 30;
-    const endTime = this.calculateEndTime(createAppointmentDto.startTime, duration);
+    const endTime = createAppointmentDto.endTime || this.calculateEndTime(createAppointmentDto.startTime, duration);
 
     // Validate slot availability
     const slotValidation = await this.validateSlotAvailability(
@@ -151,7 +153,7 @@ export class AppointmentsService {
       startTime: createAppointmentDto.startTime,
       endTime,
       duration,
-      isWalkIn: createAppointmentDto.visitType === VisitType.WALK_IN,
+      isWalkIn: createAppointmentDto.isWalkIn || createAppointmentDto.visitType === VisitType.WALK_IN,
       lastAssignedDoctor: createAppointmentDto.doctorId ? new Types.ObjectId(createAppointmentDto.doctorId) : undefined,
       lastDoctorAssignmentAt: createAppointmentDto.doctorId ? new Date() : undefined,
     });
@@ -548,11 +550,16 @@ export class AppointmentsService {
     const conflicts: string[] = [];
 
     // Check if patient already has an appointment at this time
+    const startOfDay = new Date(appointmentDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(appointmentDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    
     const patientConflict = await this.appointmentModel.findOne({
       patientId: new Types.ObjectId(patientId),
       appointmentDate: {
-        $gte: new Date(appointmentDate.setHours(0, 0, 0, 0)),
-        $lt: new Date(appointmentDate.setHours(23, 59, 59, 999))
+        $gte: startOfDay,
+        $lt: endOfDay
       },
       startTime,
       status: { $in: [AppointmentStatus.SCHEDULED, AppointmentStatus.IN_PROGRESS] },
@@ -568,8 +575,8 @@ export class AppointmentsService {
       const doctorConflict = await this.appointmentModel.findOne({
         doctorId: new Types.ObjectId(doctorId),
         appointmentDate: {
-          $gte: new Date(appointmentDate.setHours(0, 0, 0, 0)),
-          $lt: new Date(appointmentDate.setHours(23, 59, 59, 999))
+          $gte: startOfDay,
+          $lt: endOfDay
         },
         startTime,
         status: { $in: [AppointmentStatus.SCHEDULED, AppointmentStatus.IN_PROGRESS] },
