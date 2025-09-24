@@ -28,16 +28,19 @@ export class AppointmentsController {
     @Body() createAppointmentDto: CreateAppointmentDto,
     @Request() req: any
   ) {
-    const { branchId, organizationId, role, organizationId: userOrgId, branchId: userBranchId } = req.user;
+    const { branchId, organizationId, role, userId } = req.user;
+    
+    console.log('Appointment Controller - User data:', req.user);
+    console.log('Appointment Controller - Appointment data:', createAppointmentDto);
     
     return this.appointmentsService.create(
       createAppointmentDto,
       branchId,
       organizationId,
-      req.user.id,
+      userId,
       role,
-      userOrgId,
-      userBranchId
+      organizationId,
+      branchId
     );
   }
 
@@ -50,7 +53,7 @@ export class AppointmentsController {
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
   ) {
-    const { branchId, organizationId, role, organizationId: userOrgId, branchId: userBranchId } = req.user;
+    const { branchId, organizationId, role } = req.user;
     
     const filters = {
       ...(status && { status }),
@@ -64,8 +67,8 @@ export class AppointmentsController {
       branchId,
       organizationId,
       role,
-      userOrgId,
-      userBranchId,
+      organizationId,
+      branchId,
       filters
     );
   }
@@ -97,15 +100,15 @@ export class AppointmentsController {
     @Param('id') id: string,
     @Request() req: any
   ) {
-    const { branchId, organizationId, role, organizationId: userOrgId, branchId: userBranchId } = req.user;
+    const { branchId, organizationId, role } = req.user;
     
     return this.appointmentsService.findOne(
       id,
       branchId,
       organizationId,
       role,
-      userOrgId,
-      userBranchId
+      organizationId,
+      branchId
     );
   }
 
@@ -115,7 +118,7 @@ export class AppointmentsController {
     @Body() updateAppointmentDto: UpdateAppointmentDto,
     @Request() req: any
   ) {
-    const { branchId, organizationId, role, organizationId: userOrgId, branchId: userBranchId } = req.user;
+    const { branchId, organizationId, role } = req.user;
     
     return this.appointmentsService.update(
       id,
@@ -123,8 +126,8 @@ export class AppointmentsController {
       branchId,
       organizationId,
       role,
-      userOrgId,
-      userBranchId
+      organizationId,
+      branchId
     );
   }
 
@@ -135,17 +138,17 @@ export class AppointmentsController {
     @Body('cancellationReason') cancellationReason: string,
     @Request() req: any
   ) {
-    const { branchId, organizationId, role, organizationId: userOrgId, branchId: userBranchId } = req.user;
+    const { branchId, organizationId, role, userId } = req.user;
     
     return this.appointmentsService.cancel(
       id,
       cancellationReason,
       branchId,
       organizationId,
-      req.user.id,
+      userId,
       role,
-      userOrgId,
-      userBranchId
+      organizationId,
+      branchId
     );
   }
 
