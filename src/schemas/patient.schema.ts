@@ -7,10 +7,7 @@ export type PatientDocument = Patient & Document & SoftDeleteDocument;
 @Schema({ timestamps: true })
 export class Patient extends SoftDeleteMixin {
   @Prop({ required: true, trim: true })
-  firstName: string;
-
-  @Prop({ required: true, trim: true })
-  lastName: string;
+  name: string;
 
   @Prop({ required: true, unique: true, lowercase: true, trim: true })
   email: string;

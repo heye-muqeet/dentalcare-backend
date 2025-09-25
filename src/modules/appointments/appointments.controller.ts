@@ -11,6 +11,7 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { AppointmentsService } from './appointments.service';
@@ -95,6 +96,35 @@ export class AppointmentsController {
     );
   }
 
+  @Get('check-existing')
+  async checkExistingAppointment(
+    @Query('patientId') patientId: string,
+    @Query('appointmentDate') appointmentDate: string,
+    @Request() req: any
+  ) {
+    console.log('🔍 AppointmentsController.checkExistingAppointment called:', {
+      patientId,
+      appointmentDate,
+      user: req.user
+    });
+
+    if (!patientId || !appointmentDate) {
+      throw new BadRequestException('Patient ID and appointment date are required');
+    }
+
+    const { branchId, organizationId, role } = req.user;
+    
+    return this.appointmentsService.checkExistingAppointment(
+      patientId,
+      appointmentDate,
+      branchId,
+      organizationId,
+      role,
+      organizationId,
+      branchId
+    );
+  }
+
   @Get(':id')
   async findOne(
     @Param('id') id: string,
@@ -162,19 +192,23 @@ export class AppointmentsController {
       endTime: string;
       patientId: string;
       excludeAppointmentId?: string;
+      isWalkIn?: boolean;
     },
     @Request() req: any
   ) {
-    const { branchId } = req.user;
+    const { branchId, organizationId } = req.user;
     
     return this.appointmentsService.validateSlotAvailability(
       body.doctorId,
       branchId,
+      organizationId,
       new Date(body.appointmentDate),
       body.startTime,
       body.endTime,
       body.patientId,
-      body.excludeAppointmentId
+      body.excludeAppointmentId,
+      body.isWalkIn
     );
   }
+
 }

@@ -76,7 +76,7 @@ export class BranchesService {
     } else if (userRole === 'organization_admin' && userOrganizationId) {
       // Organization admin can see their organization's non-deleted branches
       query = { organizationId: userOrganizationId, isDeleted: { $ne: true } };
-    } else if (userRole === 'branch_admin' && userOrganizationId) {
+    } else if ((userRole === 'branch_admin' || userRole === 'receptionist') && userOrganizationId) {
       // Branch admin can see their organization's non-deleted branches
       query = { organizationId: userOrganizationId, isDeleted: { $ne: true } };
     } else {
@@ -127,7 +127,8 @@ export class BranchesService {
       userRole === 'super_admin' || 
       (userRole === 'organization_admin' && 
         userOrgIdString === branchOrgIdString) ||
-      (userRole === 'branch_admin' && userBranchId === id);
+      (userRole === 'branch_admin' && userBranchId === id) ||
+      (userRole === 'receptionist' && userBranchId === id);
 
     if (!isPermitted) {
       console.log('Access Denied - Detailed Permissions:', {
@@ -225,7 +226,7 @@ export class BranchesService {
       if (branch.organizationId.toString() !== userOrganizationId) {
         throw new ForbiddenException('Insufficient permissions');
       }
-    } else if (userRole === 'branch_admin' && userBranchId === id) {
+    } else if ((userRole === 'branch_admin' || userRole === 'receptionist') && userBranchId === id) {
       // Branch admin can update their own branch
     } else {
     throw new ForbiddenException('Insufficient permissions');
@@ -462,7 +463,7 @@ export class BranchesService {
       return this.branchAdminModel.find({ branchId, organizationId: userOrganizationId }).populate('createdBy', 'firstName lastName email').exec();
     }
 
-    if (userRole === 'branch_admin' && userBranchId === branchId) {
+    if ((userRole === 'branch_admin' || userRole === 'receptionist') && userBranchId === branchId) {
       return this.branchAdminModel.find({ branchId }).populate('createdBy', 'firstName lastName email').exec();
     }
 
@@ -470,20 +471,30 @@ export class BranchesService {
   }
 
   async getBranchDoctors(branchId: string, userRole: string, userOrganizationId?: string, userBranchId?: string): Promise<Doctor[]> {
+    console.log('🔍 getBranchDoctors called:', { branchId, userRole, userOrganizationId, userBranchId });
+    
     if (userRole === 'super_admin') {
-      return this.doctorModel.find({ branchId }).populate('branchId organizationId', 'name').exec();
+      const doctors = await this.doctorModel.find({ branchId: new Types.ObjectId(branchId) }).populate('branchId organizationId', 'name').exec();
+      console.log('🔍 Super admin found doctors:', doctors.length);
+      return doctors;
     }
 
     if (userRole === 'organization_admin' && userOrganizationId) {
-      return this.doctorModel.find({ branchId, organizationId: userOrganizationId }).populate('branchId organizationId', 'name').exec();
+      const doctors = await this.doctorModel.find({ 
+        branchId: new Types.ObjectId(branchId), 
+        organizationId: new Types.ObjectId(userOrganizationId) 
+      }).populate('branchId organizationId', 'name').exec();
+      console.log('🔍 Organization admin found doctors:', doctors.length);
+      return doctors;
     }
 
-    if (userRole === 'branch_admin' && userBranchId === branchId) {
-      return this.doctorModel.find({ branchId }).populate('branchId organizationId', 'name').exec();
-    }
-
-    if (userRole === 'receptionist' && userBranchId === branchId) {
-      return this.doctorModel.find({ branchId }).populate('branchId organizationId', 'name').exec();
+    if ((userRole === 'branch_admin' || userRole === 'receptionist') && userBranchId === branchId) {
+      const doctors = await this.doctorModel.find({ 
+        branchId: new Types.ObjectId(branchId),
+        isDeleted: { $ne: true }
+      }).populate('branchId organizationId', 'name').exec();
+      console.log('🔍 Branch admin/receptionist found doctors:', doctors.length);
+      return doctors;
     }
 
     throw new ForbiddenException('Insufficient permissions');
@@ -498,11 +509,25 @@ export class BranchesService {
       return this.receptionistModel.find({ branchId, organizationId: userOrganizationId }).populate('branchId organizationId', 'name').exec();
     }
 
-    if (userRole === 'branch_admin' && userBranchId === branchId) {
+    if ((userRole === 'branch_admin' || userRole === 'receptionist') && userBranchId === branchId) {
       return this.receptionistModel.find({ branchId }).populate('branchId organizationId', 'name').exec();
     }
 
     throw new ForbiddenException('Insufficient permissions');
+  }
+
+  async checkPatientEmailExists(email: string): Promise<boolean> {
+    console.log('🔍 Checking if patient email exists:', email);
+    
+    const existingPatient = await this.patientModel.findOne({ 
+      email: email.toLowerCase().trim(),
+      isDeleted: { $ne: true }
+    }).exec();
+    
+    const exists = !!existingPatient;
+    console.log('🔍 Email check result:', { email, exists });
+    
+    return exists;
   }
 
   async getBranchPatients(branchId: string, userRole: string, userOrganizationId?: string, userBranchId?: string): Promise<Patient[]> {
@@ -528,7 +553,7 @@ export class BranchesService {
       return patients;
     }
 
-    if (userRole === 'branch_admin' && userBranchId === branchId) {
+    if ((userRole === 'branch_admin' || userRole === 'receptionist') && userBranchId === branchId) {
       const patients = await this.patientModel.find({ branchId: branchObjectId }).populate('branchId organizationId', 'name').exec();
       console.log('Branch admin found patients:', patients.length);
       return patients;
@@ -552,6 +577,15 @@ export class BranchesService {
     userOrganizationId?: string,
     userBranchId?: string
   ): Promise<Patient> {
+    console.log('🔍 BranchesService.createPatient called with:', {
+      createPatientDto,
+      branchId,
+      organizationId,
+      createdBy,
+      userRole,
+      userOrganizationId,
+      userBranchId
+    });
     console.log('BranchesService.createPatient called:', {
       branchId,
       organizationId,
@@ -565,7 +599,7 @@ export class BranchesService {
       // Super admin can create patients in any branch
     } else if (userRole === 'organization_admin' && userOrganizationId === organizationId) {
       // Organization admin can create patients in their organization's branches
-    } else if (userRole === 'branch_admin' && userBranchId === branchId) {
+    } else if ((userRole === 'branch_admin' || userRole === 'receptionist') && userBranchId === branchId) {
       // Branch admin can create patients in their own branch
     } else if (userRole === 'receptionist' && userBranchId === branchId) {
       // Receptionist can create patients in their own branch
@@ -580,10 +614,13 @@ export class BranchesService {
     }
 
     // Check if email already exists
+    console.log('🔍 Checking if email exists:', createPatientDto.email);
     const existingPatient = await this.patientModel.findOne({ email: createPatientDto.email }).exec();
     if (existingPatient) {
+      console.log('❌ Patient with this email already exists');
       throw new ConflictException('Patient with this email already exists');
     }
+    console.log('✅ Email is unique, proceeding with patient creation');
 
     // Generate a default password (patients will set their own password later)
     const defaultPassword = 'patient123'; // You might want to generate a random password
@@ -602,8 +639,7 @@ export class BranchesService {
     };
 
     console.log('Creating patient with data:', {
-      firstName: patientData.firstName,
-      lastName: patientData.lastName,
+      name: patientData.name,
       email: patientData.email,
       branchId: patientData.branchId.toString(),
       organizationId: patientData.organizationId.toString()
@@ -613,7 +649,7 @@ export class BranchesService {
     const savedPatient = await patient.save();
     console.log('Patient created successfully:', {
       id: savedPatient._id,
-      name: `${savedPatient.firstName} ${savedPatient.lastName}`,
+      name: savedPatient.name,
       branchId: savedPatient.branchId.toString()
     });
 
@@ -631,7 +667,7 @@ export class BranchesService {
     const branchObjectId = new Types.ObjectId(branchId);
     
     // Services are branch-specific - only users from the same branch can view them
-    if (userRole === 'branch_admin' && userBranchId === branchId) {
+    if ((userRole === 'branch_admin' || userRole === 'receptionist') && userBranchId === branchId) {
       const services = await this.serviceModel.find({ branchId: branchObjectId }).populate('branchId organizationId', 'name').exec();
       console.log('Branch admin found services:', services.length);
       return services;
@@ -717,7 +753,7 @@ export class BranchesService {
       if (service.organizationId.toString() !== userOrganizationId) {
         throw new ForbiddenException('Insufficient permissions');
       }
-    } else if (userRole === 'branch_admin' && userBranchId) {
+    } else if ((userRole === 'branch_admin' || userRole === 'receptionist') && userBranchId) {
       if (service.branchId.toString() !== userBranchId) {
         throw new ForbiddenException('Insufficient permissions');
       }
@@ -762,7 +798,7 @@ export class BranchesService {
       if (service.organizationId.toString() !== userOrganizationId) {
         throw new ForbiddenException('Insufficient permissions');
       }
-    } else if (userRole === 'branch_admin' && userBranchId) {
+    } else if ((userRole === 'branch_admin' || userRole === 'receptionist') && userBranchId) {
       if (service.branchId.toString() !== userBranchId) {
         throw new ForbiddenException('Insufficient permissions');
       }
@@ -807,7 +843,7 @@ export class BranchesService {
       if (service.organizationId.toString() !== userOrganizationId) {
         throw new ForbiddenException('Insufficient permissions');
       }
-    } else if (userRole === 'branch_admin' && userBranchId) {
+    } else if ((userRole === 'branch_admin' || userRole === 'receptionist') && userBranchId) {
       if (service.branchId.toString() !== userBranchId) {
         throw new ForbiddenException('Insufficient permissions');
       }
@@ -856,7 +892,7 @@ export class BranchesService {
     // Check permissions - organization_admin, branch_admin and receptionist can create services
     if (userRole === 'organization_admin' && userOrganizationId === organizationId) {
       // Organization admin can create services in any branch of their organization
-    } else if (userRole === 'branch_admin' && userBranchId === branchId) {
+    } else if ((userRole === 'branch_admin' || userRole === 'receptionist') && userBranchId === branchId) {
       // Branch admin can create services in their own branch
     } else if (userRole === 'receptionist' && userBranchId === branchId) {
       // Receptionist can create services in their own branch
@@ -959,7 +995,7 @@ export class BranchesService {
       // Super admin can see stats for any branch
     } else if (userRole === 'organization_admin' && userOrganizationId) {
       // Organization admin can see stats for branches in their organization
-    } else if (userRole === 'branch_admin' && userBranchId === branchId) {
+    } else if ((userRole === 'branch_admin' || userRole === 'receptionist') && userBranchId === branchId) {
       // Branch admin can see stats for their branch
     } else {
       throw new ForbiddenException('Insufficient permissions');

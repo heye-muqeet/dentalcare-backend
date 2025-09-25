@@ -84,12 +84,13 @@ export class AuthService {
     const loginResponse = {
       user: {
         id: user._id,
+        _id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
         role: role,
-        organizationId: user.organizationId,
-        branchId: user.branchId,
+        organizationId: user.organizationId?._id || user.organizationId,
+        branchId: user.branchId?._id || user.branchId,
         profileImage: user.profileImage,
         isActive: user.isActive,
       },
@@ -98,8 +99,8 @@ export class AuthService {
       expires_in: tokenPair.expiresIn,
       token_type: tokenPair.tokenType,
       role: role,
-      organizationId: user.organizationId,
-      branchId: user.branchId,
+      organizationId: user.organizationId?._id || user.organizationId,
+      branchId: user.branchId?._id || user.branchId,
     };
 
     // Log successful login

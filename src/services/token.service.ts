@@ -161,11 +161,26 @@ export class TokenService {
       userAgent?: string;
     } = {}
   ): Promise<TokenPair> {
+    console.log('🔍 Looking for refresh token in database:', {
+      refreshTokenLength: refreshToken?.length,
+      refreshTokenPreview: refreshToken?.substring(0, 10) + '...',
+      ipAddress: context.ipAddress
+    });
+
     // Validate refresh token
     const tokenDoc = await this.refreshTokenModel.findOne({
       token: refreshToken,
       status: TokenStatus.ACTIVE
     }).exec();
+
+    console.log('🔍 Refresh token lookup result:', {
+      found: !!tokenDoc,
+      tokenId: tokenDoc?._id,
+      userId: tokenDoc?.userId,
+      userEmail: tokenDoc?.userEmail,
+      status: tokenDoc?.status,
+      expiresAt: tokenDoc?.expiresAt
+    });
 
     if (!tokenDoc) {
       await this.auditLoggerService.logSecurityEvent(

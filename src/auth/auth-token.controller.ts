@@ -17,6 +17,14 @@ export class AuthTokenController {
   @Post('refresh')
   async refreshToken(@Body() body: { refreshToken: string }, @Request() req: any) {
     try {
+      console.log('🔄 Token refresh request received:', {
+        hasRefreshToken: !!body.refreshToken,
+        refreshTokenLength: body.refreshToken?.length,
+        refreshTokenPreview: body.refreshToken?.substring(0, 10) + '...',
+        ipAddress: req.ip || req.connection.remoteAddress,
+        userAgent: req.get('User-Agent')
+      });
+
       const context = {
         ipAddress: req.ip || req.connection.remoteAddress,
         userAgent: req.get('User-Agent'),
@@ -51,13 +59,20 @@ export class AuthTokenController {
         data: result
       };
     } catch (error) {
+      console.error('❌ Token refresh failed:', {
+        error: error.message,
+        stack: error.stack,
+        refreshToken: body.refreshToken ? 'provided' : 'missing',
+        refreshTokenLength: body.refreshToken?.length
+      });
+
       // Log failed refresh attempt
       await this.auditLoggerService.logAuthEvent(
-        'LOGIN_FAILED' as any,
+        'login_failed' as any,
         `Failed token refresh attempt: ${error.message}`,
         {
           userEmail: 'unknown',
-          userRole: 'unknown' as any,
+          userRole: 'system' as any, // Use 'system' instead of 'unknown'
           ipAddress: req.ip || req.connection.remoteAddress,
           userAgent: req.get('User-Agent'),
           requestId: req.requestId,

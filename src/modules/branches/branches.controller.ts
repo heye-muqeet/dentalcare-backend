@@ -260,6 +260,23 @@ export class BranchesController {
     }
   }
 
+  @Get(':id/patients/check-email/:email')
+  async checkPatientEmail(@Request() req: any, @Param('id') branchId: string, @Param('email') email: string) {
+    try {
+      console.log('BranchesController.checkPatientEmail called:', { branchId, email });
+      const exists = await this.branchesService.checkPatientEmailExists(email);
+      
+      return {
+        success: true,
+        exists: exists,
+        message: exists ? 'Email already exists' : 'Email is available'
+      };
+    } catch (error) {
+      console.error('BranchesController.checkPatientEmail error:', error);
+      throw error;
+    }
+  }
+
   @Post(':id/patients')
   async createPatient(
     @Request() req: any,

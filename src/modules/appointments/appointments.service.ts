@@ -35,6 +35,7 @@ export interface UpdateAppointmentDto {
   duration?: number;
   status?: AppointmentStatus;
   isEmergency?: boolean;
+  isWalkIn?: boolean;
   lastAssignedDoctor?: Types.ObjectId;
   lastDoctorAssignmentAt?: Date;
   metadata?: {
@@ -55,9 +56,11 @@ export interface AvailableSlot {
 }
 
 export interface SlotValidationResult {
-  isValid: boolean;
-  conflicts: string[];
-  availableSlots?: AvailableSlot[];
+  success: boolean;
+  data: {
+    available: boolean;
+    reason?: string;
+  };
 }
 
 @Injectable()
@@ -78,27 +81,59 @@ export class AppointmentsService {
     userOrganizationId?: string,
     userBranchId?: string
   ): Promise<Appointment> {
+    console.log('🔍 AppointmentsService.create called with:', {
+      createAppointmentDto,
+      branchId,
+      organizationId,
+      createdBy,
+      userRole,
+      userOrganizationId,
+      userBranchId
+    });
+
     // Check permissions
     if (userRole === 'super_admin') {
+      console.log('✅ Super admin creating appointment');
       // Super admin can create appointments in any branch
     } else if (userRole === 'organization_admin' && userOrganizationId === organizationId) {
+      console.log('✅ Organization admin creating appointment');
       // Organization admin can create appointments in their organization's branches
     } else if (userRole === 'branch_admin' && userBranchId === branchId) {
+      console.log('✅ Branch admin creating appointment');
       // Branch admin can create appointments in their own branch
     } else if (userRole === 'receptionist' && userBranchId === branchId) {
+      console.log('✅ Receptionist creating appointment');
       // Receptionist can create appointments in their own branch
     } else {
+      console.log('❌ Insufficient permissions:', { userRole, userBranchId, branchId });
       throw new ForbiddenException('Insufficient permissions to create appointment');
     }
 
     // Validate patient exists and belongs to the branch
+    console.log('🔍 Looking for patient:', {
+      patientId: createAppointmentDto.patientId,
+      branchId: branchId,
+      branchIdObjectId: new Types.ObjectId(branchId)
+    });
+    
     const patient = await this.patientModel.findOne({
       _id: createAppointmentDto.patientId,
       branchId: new Types.ObjectId(branchId),
       isActive: true
     }).exec();
 
+    console.log('🔍 Patient found:', patient ? 'Yes' : 'No');
+    if (patient) {
+      console.log('🔍 Patient details:', {
+        _id: patient._id,
+        name: patient.name,
+        branchId: patient.branchId,
+        isActive: patient.isActive
+      });
+    }
+
     if (!patient) {
+      console.log('❌ Patient not found or does not belong to this branch');
       throw new NotFoundException('Patient not found or does not belong to this branch');
     }
 
@@ -131,14 +166,17 @@ export class AppointmentsService {
     const slotValidation = await this.validateSlotAvailability(
       createAppointmentDto.doctorId,
       branchId,
+      organizationId,
       appointmentDate,
       createAppointmentDto.startTime,
       endTime,
-      createAppointmentDto.patientId
+      createAppointmentDto.patientId,
+      undefined,
+      createAppointmentDto.isWalkIn
     );
 
-    if (!slotValidation.isValid) {
-      throw new ConflictException(`Slot not available: ${slotValidation.conflicts.join(', ')}`);
+    if (!slotValidation.success || !slotValidation.data.available) {
+      throw new ConflictException(`Slot not available: ${slotValidation.data.reason || 'Unknown conflict'}`);
     }
 
     // Create appointment
@@ -223,7 +261,7 @@ export class AppointmentsService {
 
     const appointments = await this.appointmentModel
       .find(query)
-      .populate('patientId', 'firstName lastName email phone')
+      .populate('patientId', 'name email phone')
       .populate('doctorId', 'firstName lastName specialization')
       .populate('createdBy', 'firstName lastName email')
       .populate('cancelledBy', 'firstName lastName email')
@@ -247,7 +285,7 @@ export class AppointmentsService {
         branchId: new Types.ObjectId(branchId),
         organizationId: new Types.ObjectId(organizationId),
       })
-      .populate('patientId', 'firstName lastName email phone dateOfBirth')
+      .populate('patientId', 'name email phone dateOfBirth')
       .populate('doctorId', 'firstName lastName specialization email phone')
       .populate('createdBy', 'firstName lastName email')
       .populate('cancelledBy', 'firstName lastName email')
@@ -329,15 +367,17 @@ export class AppointmentsService {
       const slotValidation = await this.validateSlotAvailability(
         updateAppointmentDto.doctorId,
         branchId,
+        organizationId,
         appointmentDate,
         startTime,
         endTime,
         appointment.patientId.toString(),
-        id // Exclude current appointment from conflict check
+        id, // Exclude current appointment from conflict check
+        updateAppointmentDto.isWalkIn
       );
 
-      if (!slotValidation.isValid) {
-        throw new ConflictException(`Slot not available: ${slotValidation.conflicts.join(', ')}`);
+      if (!slotValidation.success || !slotValidation.data.available) {
+        throw new ConflictException(`Slot not available: ${slotValidation.data.reason || 'Unknown conflict'}`);
       }
 
       updateAppointmentDto.lastAssignedDoctor = new Types.ObjectId(updateAppointmentDto.doctorId);
@@ -357,15 +397,17 @@ export class AppointmentsService {
       const slotValidation = await this.validateSlotAvailability(
         appointment.doctorId?.toString(),
         branchId,
+        organizationId,
         appointmentDate,
         startTime,
         endTime,
         appointment.patientId.toString(),
-        id // Exclude current appointment from conflict check
+        id, // Exclude current appointment from conflict check
+        updateAppointmentDto.isWalkIn
       );
 
-      if (!slotValidation.isValid) {
-        throw new ConflictException(`Slot not available: ${slotValidation.conflicts.join(', ')}`);
+      if (!slotValidation.success || !slotValidation.data.available) {
+        throw new ConflictException(`Slot not available: ${slotValidation.data.reason || 'Unknown conflict'}`);
       }
 
       updateAppointmentDto.endTime = endTime;
@@ -374,7 +416,7 @@ export class AppointmentsService {
     // Update appointment
     const updatedAppointment = await this.appointmentModel
       .findByIdAndUpdate(id, updateAppointmentDto, { new: true })
-      .populate('patientId', 'firstName lastName email phone')
+      .populate('patientId', 'name email phone')
       .populate('doctorId', 'firstName lastName specialization')
       .populate('createdBy', 'firstName lastName email')
       .populate('cancelledBy', 'firstName lastName email')
@@ -442,7 +484,7 @@ export class AppointmentsService {
         },
         { new: true }
       )
-      .populate('patientId', 'firstName lastName email phone')
+      .populate('patientId', 'name email phone')
       .populate('doctorId', 'firstName lastName specialization')
       .populate('createdBy', 'firstName lastName email')
       .populate('cancelledBy', 'firstName lastName email')
@@ -541,45 +583,131 @@ export class AppointmentsService {
   async validateSlotAvailability(
     doctorId: string | undefined,
     branchId: string,
+    organizationId: string,
     appointmentDate: Date,
     startTime: string,
     endTime: string,
     patientId: string,
-    excludeAppointmentId?: string
+    excludeAppointmentId?: string,
+    isWalkIn?: boolean
   ): Promise<SlotValidationResult> {
-    const conflicts: string[] = [];
+    try {
+      console.log('🔍 validateSlotAvailability called with:', {
+        doctorId,
+        branchId,
+        organizationId,
+        appointmentDate: appointmentDate.toISOString(),
+        startTime,
+        endTime,
+        patientId,
+        excludeAppointmentId
+      });
 
-    // Check if patient already has an appointment at this time
-    const startOfDay = new Date(appointmentDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(appointmentDate);
-    endOfDay.setHours(23, 59, 59, 999);
+      const conflicts: string[] = [];
+
+      // Check if the appointment is in the future (skip for walk-in appointments)
+      if (!isWalkIn) {
+        const now = new Date();
+        const appointmentDateTime = new Date(appointmentDate);
+        const [hours, minutes] = startTime.split(':').map(Number);
+        appointmentDateTime.setHours(hours, minutes, 0, 0);
+        
+        // Add 30 minutes buffer to current time
+        const bufferTime = new Date(now.getTime() + 30 * 60 * 1000);
+        
+        if (appointmentDateTime < bufferTime) {
+          conflicts.push('Appointment time must be at least 30 minutes in the future');
+          console.log('❌ Slot is in the past:', {
+            appointmentTime: appointmentDateTime.toISOString(),
+            currentTime: now.toISOString(),
+            bufferTime: bufferTime.toISOString()
+          });
+        }
+      } else {
+        console.log('🚶‍♂️ Skipping past time validation for walk-in appointment');
+        
+        // For walk-in appointments, check if branch is currently open
+        const branch = await this.branchModel.findById(branchId).exec();
+        if (branch) {
+          const now = new Date();
+          const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+          const branchHours = branch.operatingHours[dayOfWeek];
+          
+          if (!branchHours || !branchHours.isOpen) {
+            conflicts.push('Walk-in appointments are not available - branch is currently closed');
+            console.log('❌ Branch is closed for walk-in appointments:', {
+              dayOfWeek,
+              isOpen: branchHours?.isOpen,
+              currentTime: now.toTimeString().slice(0, 5)
+            });
+          } else {
+            const currentTime = now.toTimeString().slice(0, 5);
+            const currentMinutes = this.timeToMinutes(currentTime);
+            const branchStart = this.timeToMinutes(branchHours.open);
+            const branchEnd = this.timeToMinutes(branchHours.close);
+            
+            if (currentMinutes < branchStart || currentMinutes > branchEnd) {
+              conflicts.push('Walk-in appointments are not available - current time is outside branch operating hours');
+              console.log('❌ Current time outside branch hours for walk-in:', {
+                currentTime,
+                branchOpen: branchHours.open,
+                branchClose: branchHours.close,
+                currentMinutes,
+                branchStart,
+                branchEnd
+              });
+            } else {
+              console.log('✅ Branch is open for walk-in appointment:', {
+                currentTime,
+                branchOpen: branchHours.open,
+                branchClose: branchHours.close
+              });
+            }
+          }
+        }
+      }
+
+      // Check if patient already has an appointment at this time
+      const startOfDay = new Date(appointmentDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(appointmentDate);
+      endOfDay.setHours(23, 59, 59, 999);
     
-    const patientConflict = await this.appointmentModel.findOne({
-      patientId: new Types.ObjectId(patientId),
-      appointmentDate: {
-        $gte: startOfDay,
-        $lt: endOfDay
-      },
-      startTime,
-      status: { $in: [AppointmentStatus.SCHEDULED, AppointmentStatus.IN_PROGRESS] },
-      ...(excludeAppointmentId && { _id: { $ne: new Types.ObjectId(excludeAppointmentId) } })
-    }).exec();
-
-    if (patientConflict) {
-      conflicts.push('Patient already has an appointment at this time');
-    }
-
-    // Check doctor availability if doctor is specified
-    if (doctorId) {
-      const doctorConflict = await this.appointmentModel.findOne({
-        doctorId: new Types.ObjectId(doctorId),
+    // Skip patient conflict check if patientId is 'temp' (for new patients)
+    let patientConflict: AppointmentDocument | null = null;
+    if (patientId && patientId !== 'temp' && Types.ObjectId.isValid(patientId)) {
+      patientConflict = await this.appointmentModel.findOne({
+        patientId: new Types.ObjectId(patientId),
+        branchId: new Types.ObjectId(branchId),
+        organizationId: new Types.ObjectId(organizationId),
         appointmentDate: {
           $gte: startOfDay,
           $lt: endOfDay
         },
         startTime,
         status: { $in: [AppointmentStatus.SCHEDULED, AppointmentStatus.IN_PROGRESS] },
+        isDeleted: { $ne: true },
+        ...(excludeAppointmentId && { _id: { $ne: new Types.ObjectId(excludeAppointmentId) } })
+      }).exec();
+    }
+
+    if (patientConflict) {
+      conflicts.push('Patient already has an appointment at this time');
+    }
+
+    // Check doctor availability if doctor is specified
+    if (doctorId && Types.ObjectId.isValid(doctorId)) {
+      const doctorConflict = await this.appointmentModel.findOne({
+        doctorId: new Types.ObjectId(doctorId),
+        branchId: new Types.ObjectId(branchId),
+        organizationId: new Types.ObjectId(organizationId),
+        appointmentDate: {
+          $gte: startOfDay,
+          $lt: endOfDay
+        },
+        startTime,
+        status: { $in: [AppointmentStatus.SCHEDULED, AppointmentStatus.IN_PROGRESS] },
+        isDeleted: { $ne: true },
         ...(excludeAppointmentId && { _id: { $ne: new Types.ObjectId(excludeAppointmentId) } })
       }).exec();
 
@@ -615,7 +743,11 @@ export class AppointmentsService {
       const branchHours = branch.operatingHours[dayOfWeek];
       
       if (!branchHours || !branchHours.isOpen) {
-        conflicts.push('Branch is closed on this day');
+        if (isWalkIn) {
+          conflicts.push('Walk-in appointments are not available - branch is closed on this day');
+        } else {
+          conflicts.push('Branch is closed on this day');
+        }
       } else {
         const branchStart = this.timeToMinutes(branchHours.open);
         const branchEnd = this.timeToMinutes(branchHours.close);
@@ -623,15 +755,32 @@ export class AppointmentsService {
         const slotEnd = this.timeToMinutes(endTime);
         
         if (slotStart < branchStart || slotEnd > branchEnd) {
-          conflicts.push('Appointment time is outside branch operating hours');
+          if (isWalkIn) {
+            conflicts.push('Walk-in appointments are not available - current time is outside branch operating hours');
+          } else {
+            conflicts.push('Appointment time is outside branch operating hours');
+          }
         }
       }
     }
 
-    return {
-      isValid: conflicts.length === 0,
-      conflicts
-    };
+      return {
+        success: true,
+        data: {
+          available: conflicts.length === 0,
+          reason: conflicts.length > 0 ? conflicts.join('; ') : undefined
+        }
+      };
+    } catch (error) {
+      console.error('❌ Error in validateSlotAvailability:', error);
+      return {
+        success: false,
+        data: {
+          available: false,
+          reason: 'Error validating slot availability'
+        }
+      };
+    }
   }
 
   private calculateEndTime(startTime: string, duration: number): string {
@@ -654,7 +803,7 @@ export class AppointmentsService {
   private async populateAppointment(appointment: AppointmentDocument): Promise<Appointment> {
     const populatedAppointment = await this.appointmentModel
       .findById(appointment._id)
-      .populate('patientId', 'firstName lastName email phone')
+      .populate('patientId', 'name email phone')
       .populate('doctorId', 'firstName lastName specialization')
       .populate('createdBy', 'firstName lastName email')
       .populate('cancelledBy', 'firstName lastName email')
@@ -694,5 +843,74 @@ export class AppointmentsService {
     }
     
     return false;
+  }
+
+  async checkExistingAppointment(
+    patientId: string,
+    appointmentDate: string,
+    branchId: string,
+    organizationId: string,
+    userRole: string,
+    userOrganizationId?: string,
+    userBranchId?: string
+  ): Promise<{ hasAppointment: boolean; existingAppointment?: any; canCreateNew: boolean; reason?: string }> {
+    console.log('🔍 Checking for existing appointment:', {
+      patientId,
+      appointmentDate,
+      branchId,
+      organizationId,
+      userRole
+    });
+
+    // Permission checks
+    if (userRole === 'super_admin') {
+      // Super admin can check any appointment
+    } else if (userRole === 'organization_admin' && userOrganizationId) {
+      if (organizationId !== userOrganizationId) {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+    } else if ((userRole === 'branch_admin' || userRole === 'receptionist') && userBranchId) {
+      if (branchId !== userBranchId) {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+    } else {
+      throw new ForbiddenException('Insufficient permissions');
+    }
+
+    // Find ANY existing active appointment for the patient (not just same date)
+    const existingAppointment = await this.appointmentModel.findOne({
+      patientId: new Types.ObjectId(patientId),
+      branchId: new Types.ObjectId(branchId),
+      organizationId: new Types.ObjectId(organizationId),
+      status: { $in: ['scheduled', 'in_progress'] }, // Only check active appointments
+      isDeleted: { $ne: true }
+    }).populate('patientId', 'name email phone').populate('doctorId', 'firstName lastName specialization').exec();
+
+    console.log('🔍 Existing active appointment found:', existingAppointment ? 'Yes' : 'No');
+    if (existingAppointment) {
+      console.log('🔍 Existing appointment details:', {
+        id: existingAppointment._id,
+        patientName: (existingAppointment.patientId as any)?.name || 'Unknown',
+        appointmentDate: existingAppointment.appointmentDate,
+        startTime: existingAppointment.startTime,
+        status: existingAppointment.status
+      });
+    }
+
+    // Determine if a new appointment can be created
+    let canCreateNew = true;
+    let reason = '';
+
+    if (existingAppointment) {
+      canCreateNew = false;
+      reason = `Patient already has an active ${existingAppointment.status} appointment scheduled for ${existingAppointment.appointmentDate.toISOString().split('T')[0]} at ${existingAppointment.startTime}. Please complete or cancel the existing appointment before creating a new one.`;
+    }
+
+    return {
+      hasAppointment: !!existingAppointment,
+      existingAppointment: existingAppointment || null,
+      canCreateNew,
+      reason
+    };
   }
 }

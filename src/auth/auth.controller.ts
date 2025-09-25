@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './local-auth.guard';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -13,7 +13,7 @@ export class AuthController {
     if (!user) {
       // Log failed login attempt
       await this.authService.auditLoggerService.logAuthEvent(
-        'LOGIN_FAILED' as any,
+        'login_failed' as any,
         `Failed login attempt for email: ${loginDto.email}`,
         {
           userEmail: loginDto.email,
@@ -95,5 +95,43 @@ export class AuthController {
       throw new Error('Unauthorized');
     }
     return this.authService.createPatient(createPatientDto);
+  }
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async logout(@Request() req: any) {
+    try {
+      // Log successful logout
+      await this.authService.auditLoggerService.logAuthEvent(
+        'logout' as any,
+        `User logged out successfully`,
+        {
+          userEmail: req.user.email,
+          userRole: req.user.role,
+          ipAddress: req.ip || req.connection.remoteAddress,
+          userAgent: req.get('User-Agent'),
+          requestId: req.requestId,
+          endpoint: '/auth/logout',
+          method: 'POST',
+          metadata: {
+            logoutTime: new Date().toISOString(),
+            reason: 'User initiated logout'
+          }
+        }
+      );
+
+      return {
+        success: true,
+        message: 'Logged out successfully'
+      };
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Even if logging fails, we should still return success for logout
+      return {
+        success: true,
+        message: 'Logged out successfully'
+      };
+    }
   }
 }
