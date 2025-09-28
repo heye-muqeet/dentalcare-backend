@@ -530,6 +530,180 @@ export class BranchesService {
     return exists;
   }
 
+  async checkPatientDuplicates(
+    branchId: string,
+    patientData: any,
+    userRole: string,
+    userOrganizationId?: string,
+    userBranchId?: string
+  ): Promise<any> {
+    console.log('🔍 Checking for patient duplicates:', { branchId, patientData, userRole });
+    
+    // Check permissions
+    if (userRole === 'super_admin') {
+      // Super admin can check duplicates in any branch
+    } else if (userRole === 'organization_admin' && userOrganizationId) {
+      // Organization admin can check duplicates in their organization's branches
+    } else if ((userRole === 'branch_admin' || userRole === 'receptionist') && userBranchId === branchId) {
+      // Branch admin and receptionist can check duplicates in their own branch
+    } else {
+      throw new ForbiddenException('Insufficient permissions to check duplicates');
+    }
+
+    const branchObjectId = new Types.ObjectId(branchId);
+    let query: any = { 
+      branchId: branchObjectId,
+      isDeleted: { $ne: true }
+    };
+
+    // Add organization filter for organization admin
+    if (userRole === 'organization_admin' && userOrganizationId) {
+      query.organizationId = new Types.ObjectId(userOrganizationId);
+    }
+
+    // Get all patients in the branch
+    const allPatients = await this.patientModel.find(query).exec();
+    console.log('🔍 Found patients in branch:', allPatients.length);
+    console.log('🔍 Query used:', JSON.stringify(query, null, 2));
+    console.log('🔍 All patients found:', allPatients.map(p => ({ 
+      id: p._id, 
+      name: p.name, 
+      phone: p.phone, 
+      email: p.email,
+      dateOfBirth: p.dateOfBirth 
+    })));
+
+    // Calculate similarity scores
+    const patientsWithScores = allPatients.map(patient => {
+      const score = this.calculateSimilarity(patientData, patient);
+      console.log(`🔍 Patient ${patient.name} (${patient.phone}) similarity: ${score}%`);
+      return { patient, score };
+    });
+
+    console.log('🔍 All similarity scores:', patientsWithScores.map(item => ({ 
+      name: item.patient.name, 
+      phone: item.patient.phone, 
+      score: item.score 
+    })));
+
+    // Filter patients with similarity score >= 30%
+    const potentialDuplicates = patientsWithScores
+      .filter(item => item.score >= 30)
+      .sort((a, b) => b.score - a.score)
+      .map(item => item.patient);
+
+    const hasDuplicates = potentialDuplicates.length > 0;
+    const maxSimilarityScore = hasDuplicates 
+      ? Math.max(...patientsWithScores.map(item => item.score))
+      : 0;
+
+    console.log('🔍 Duplicate check result:', {
+      hasDuplicates,
+      potentialDuplicates: potentialDuplicates.length,
+      maxSimilarityScore,
+      allScores: patientsWithScores.map(item => item.score)
+    });
+
+    return {
+      hasDuplicates,
+      potentialDuplicates,
+      similarityScore: maxSimilarityScore
+    };
+  }
+
+  private calculateSimilarity(patient1: any, patient2: any): number {
+    console.log('🔍 Calculating similarity between:', {
+      patient1: { name: patient1.name, phone: patient1.phone, email: patient1.email, dateOfBirth: patient1.dateOfBirth },
+      patient2: { name: patient2.name, phone: patient2.phone, email: patient2.email, dateOfBirth: patient2.dateOfBirth }
+    });
+
+    let totalScore = 0;
+    let maxPossibleScore = 0;
+
+    // Name similarity (40% weight)
+    if (patient1.name && patient2.name) {
+      const name1 = patient1.name.toLowerCase().trim();
+      const name2 = patient2.name.toLowerCase().trim();
+      
+      if (name1 === name2) {
+        totalScore += 40;
+      } else if (name1.includes(name2) || name2.includes(name1)) {
+        totalScore += 25;
+      } else {
+        // Check for similar words
+        const words1 = name1.split(' ');
+        const words2 = name2.split(' ');
+        const commonWords = words1.filter(word => words2.includes(word));
+        if (commonWords.length > 0) {
+          totalScore += (commonWords.length / Math.max(words1.length, words2.length)) * 20;
+        }
+      }
+      maxPossibleScore += 40;
+    }
+
+    // Phone similarity (30% weight) - This is the most important for duplicates
+    if (patient1.phone && patient2.phone) {
+      const phone1 = patient1.phone.replace(/\D/g, '');
+      const phone2 = patient2.phone.replace(/\D/g, '');
+      
+      console.log('🔍 Phone comparison:', { phone1, phone2, match: phone1 === phone2 });
+      
+      if (phone1 === phone2) {
+        totalScore += 30;
+        console.log('🔍 Phone exact match: +30 points');
+      } else if (phone1.includes(phone2) || phone2.includes(phone1)) {
+        totalScore += 15;
+        console.log('🔍 Phone partial match: +15 points');
+      }
+      maxPossibleScore += 30;
+    }
+
+    // Date of birth similarity (20% weight)
+    if (patient1.dateOfBirth && patient2.dateOfBirth) {
+      if (patient1.dateOfBirth === patient2.dateOfBirth) {
+        totalScore += 20;
+        console.log('🔍 DOB exact match: +20 points');
+      } else {
+        // Check if dates are close (within 1 year)
+        const date1 = new Date(patient1.dateOfBirth);
+        const date2 = new Date(patient2.dateOfBirth);
+        const diffInDays = Math.abs(date1.getTime() - date2.getTime()) / (1000 * 60 * 60 * 24);
+        
+        if (diffInDays <= 365) {
+          totalScore += 10;
+          console.log('🔍 DOB close match: +10 points');
+        }
+      }
+      maxPossibleScore += 20;
+    }
+
+    // Email similarity (10% weight)
+    if (patient1.email && patient2.email) {
+      const email1 = patient1.email.toLowerCase().trim();
+      const email2 = patient2.email.toLowerCase().trim();
+      
+      if (email1 === email2) {
+        totalScore += 10;
+        console.log('🔍 Email exact match: +10 points');
+      } else if (email1.includes(email2) || email2.includes(email1)) {
+        totalScore += 5;
+        console.log('🔍 Email partial match: +5 points');
+      }
+      maxPossibleScore += 10;
+    }
+
+    // Calculate percentage similarity
+    const similarityPercentage = maxPossibleScore > 0 ? Math.round((totalScore / maxPossibleScore) * 100) : 0;
+    
+    console.log('🔍 Similarity calculation result:', {
+      totalScore,
+      maxPossibleScore,
+      similarityPercentage
+    });
+
+    return similarityPercentage;
+  }
+
   async getBranchPatients(branchId: string, userRole: string, userOrganizationId?: string, userBranchId?: string): Promise<Patient[]> {
     console.log('BranchesService.getBranchPatients called:', {
       branchId,

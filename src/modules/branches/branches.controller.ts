@@ -277,6 +277,33 @@ export class BranchesController {
     }
   }
 
+  @Post(':id/patients/check-duplicates')
+  async checkPatientDuplicates(
+    @Request() req: any,
+    @Param('id') branchId: string,
+    @Body() checkDuplicateDto: any
+  ) {
+    try {
+      console.log('BranchesController.checkPatientDuplicates called:', { branchId, patientData: checkDuplicateDto });
+      const result = await this.branchesService.checkPatientDuplicates(
+        branchId,
+        checkDuplicateDto,
+        req.user.role,
+        req.user.organizationId,
+        req.user.branchId
+      );
+      
+      return {
+        success: true,
+        data: result,
+        message: 'Duplicate check completed'
+      };
+    } catch (error) {
+      console.error('BranchesController.checkPatientDuplicates error:', error);
+      throw error;
+    }
+  }
+
   @Post(':id/patients')
   async createPatient(
     @Request() req: any,
