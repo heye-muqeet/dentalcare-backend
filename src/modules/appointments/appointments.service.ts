@@ -36,6 +36,7 @@ export interface UpdateAppointmentDto {
   status?: AppointmentStatus;
   isEmergency?: boolean;
   isWalkIn?: boolean;
+  isReschedule?: boolean;
   lastAssignedDoctor?: Types.ObjectId;
   lastDoctorAssignmentAt?: Date;
   metadata?: {
@@ -355,32 +356,67 @@ export class AppointmentsService {
         throw new NotFoundException('Doctor not found or does not belong to this branch');
       }
 
-      // Validate slot availability with new doctor
-      const appointmentDate = updateAppointmentDto.appointmentDate ? 
-        new Date(updateAppointmentDto.appointmentDate) : 
-        appointment.appointmentDate;
-      
-      const startTime = updateAppointmentDto.startTime || appointment.startTime;
-      const duration = updateAppointmentDto.duration || appointment.duration;
-      const endTime = this.calculateEndTime(startTime, duration);
+      // Check if this is just a doctor assignment (no time/date changes)
+      const isOnlyDoctorAssignment = !updateAppointmentDto.appointmentDate && 
+                                   !updateAppointmentDto.startTime && 
+                                   !updateAppointmentDto.endTime &&
+                                   (updateAppointmentDto.status === 'in_progress' || !updateAppointmentDto.status);
 
-      const slotValidation = await this.validateSlotAvailability(
-        updateAppointmentDto.doctorId,
-        branchId,
-        organizationId,
-        appointmentDate,
-        startTime,
-        endTime,
-        appointment.patientId.toString(),
-        id, // Exclude current appointment from conflict check
-        updateAppointmentDto.isWalkIn
-      );
+      // Only validate slot availability if we're changing time/date or it's not just a doctor assignment
+      if (!isOnlyDoctorAssignment) {
+        // Validate slot availability with new doctor
+        const appointmentDate = updateAppointmentDto.appointmentDate ? 
+          new Date(updateAppointmentDto.appointmentDate) : 
+          appointment.appointmentDate;
+        
+        const startTime = updateAppointmentDto.startTime || appointment.startTime;
+        const duration = updateAppointmentDto.duration || appointment.duration;
+        const endTime = this.calculateEndTime(startTime, duration);
 
-      if (!slotValidation.success || !slotValidation.data.available) {
-        throw new ConflictException(`Slot not available: ${slotValidation.data.reason || 'Unknown conflict'}`);
+        const slotValidation = await this.validateSlotAvailability(
+          updateAppointmentDto.doctorId,
+          branchId,
+          organizationId,
+          appointmentDate,
+          startTime,
+          endTime,
+          appointment.patientId.toString(),
+          id, // Exclude current appointment from conflict check
+          updateAppointmentDto.isWalkIn,
+          updateAppointmentDto.isReschedule // Pass isReschedule flag
+        );
+
+        if (!slotValidation.success || !slotValidation.data.available) {
+          throw new ConflictException(`Slot not available: ${slotValidation.data.reason || 'Unknown conflict'}`);
+        }
+      } else {
+        // For doctor assignment only, check for basic conflicts without time validation
+        const startOfDay = new Date(appointment.appointmentDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(appointment.appointmentDate);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        // Check if doctor already has another appointment at the same time
+        const doctorConflict = await this.appointmentModel.findOne({
+          doctorId: new Types.ObjectId(updateAppointmentDto.doctorId),
+          branchId: new Types.ObjectId(branchId),
+          organizationId: new Types.ObjectId(organizationId),
+          appointmentDate: {
+            $gte: startOfDay,
+            $lt: endOfDay
+          },
+          startTime: appointment.startTime,
+          status: { $in: [AppointmentStatus.SCHEDULED, AppointmentStatus.IN_PROGRESS] },
+          isDeleted: { $ne: true },
+          _id: { $ne: new Types.ObjectId(id) } // Exclude current appointment
+        }).exec();
+
+        if (doctorConflict) {
+          throw new ConflictException('Doctor already has an appointment at this time');
+        }
       }
 
-      updateAppointmentDto.lastAssignedDoctor = new Types.ObjectId(updateAppointmentDto.doctorId);
+      updateAppointmentDto.lastAssignedDoctor = appointment.doctorId;
       updateAppointmentDto.lastDoctorAssignmentAt = new Date();
     }
 
@@ -403,7 +439,8 @@ export class AppointmentsService {
         endTime,
         appointment.patientId.toString(),
         id, // Exclude current appointment from conflict check
-        updateAppointmentDto.isWalkIn
+        updateAppointmentDto.isWalkIn,
+        updateAppointmentDto.isReschedule // Pass isReschedule flag
       );
 
       if (!slotValidation.success || !slotValidation.data.available) {
@@ -414,19 +451,58 @@ export class AppointmentsService {
     }
 
     // Update appointment
-    const updatedAppointment = await this.appointmentModel
-      .findByIdAndUpdate(id, updateAppointmentDto, { new: true })
-      .populate('patientId', 'name email phone')
-      .populate('doctorId', 'firstName lastName specialization')
-      .populate('createdBy', 'firstName lastName email')
-      .populate('cancelledBy', 'firstName lastName email')
-      .exec();
+    console.log('🔍 Updating appointment with data:', {
+      appointmentId: id,
+      updateData: updateAppointmentDto,
+      currentAppointment: {
+        doctorId: appointment.doctorId?.toString(),
+        status: appointment.status,
+        appointmentDate: appointment.appointmentDate,
+        startTime: appointment.startTime
+      }
+    });
+    
+    try {
+      const updatedAppointment = await this.appointmentModel
+        .findByIdAndUpdate(id, updateAppointmentDto, { new: true })
+        .populate('patientId', 'name email phone')
+        .populate('doctorId', 'firstName lastName specialization')
+        .populate('createdBy', 'firstName lastName email')
+        .populate('cancelledBy', 'firstName lastName email')
+        .exec();
 
-    if (!updatedAppointment) {
-      throw new NotFoundException('Appointment not found after update');
+      if (!updatedAppointment) {
+        throw new NotFoundException('Appointment not found after update');
+      }
+
+      return updatedAppointment;
+    } catch (error: any) {
+      console.error('❌ Error updating appointment:', error);
+      
+      // Handle duplicate key error specifically
+      if (error.code === 11000 && error.keyPattern) {
+        console.log('🔍 Duplicate key error details:', {
+          keyPattern: error.keyPattern,
+          keyValue: error.keyValue,
+          currentAppointment: {
+            id: appointment._id,
+            doctorId: appointment.doctorId?.toString(),
+            status: appointment.status,
+            appointmentDate: appointment.appointmentDate,
+            startTime: appointment.startTime
+          },
+          updateData: updateAppointmentDto
+        });
+        
+        // Check if this is a duplicate doctor+time+status combination
+        if (error.keyPattern.doctorId && error.keyPattern.appointmentDate && error.keyPattern.startTime && error.keyPattern.status) {
+          throw new ConflictException('Cannot update appointment: This would create a duplicate booking. The doctor may already have an appointment at this time with this status.');
+        }
+      }
+      
+      throw error;
     }
 
-    return updatedAppointment;
   }
 
   async cancel(
@@ -504,6 +580,8 @@ export class AppointmentsService {
     doctorId?: string,
     duration: number = 30
   ): Promise<AvailableSlot[]> {
+    console.log('🔍 getAvailableSlots called with:', { branchId, organizationId, date, doctorId, duration });
+    
     const appointmentDate = new Date(date);
     const branch = await this.branchModel.findById(branchId).exec();
     
@@ -513,19 +591,36 @@ export class AppointmentsService {
 
     const dayOfWeek = appointmentDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
     const branchHours = branch.operatingHours[dayOfWeek];
+    
+    console.log('🔍 Day of week:', dayOfWeek);
+    console.log('🔍 Branch hours:', branchHours);
 
     if (!branchHours || !branchHours.isOpen) {
+      console.log('❌ Branch is closed on this day');
       return []; // Branch is closed on this day
     }
 
     const slots: AvailableSlot[] = [];
     const startTime = this.timeToMinutes(branchHours.open);
     const endTime = this.timeToMinutes(branchHours.close);
+    
+    console.log('🔍 Time range:', { 
+      open: branchHours.open, 
+      close: branchHours.close, 
+      startMinutes: startTime, 
+      endMinutes: endTime,
+      duration 
+    });
 
     // Generate 30-minute slots
+    console.log('🔍 Starting slot generation loop...');
+    let slotCount = 0;
     for (let time = startTime; time < endTime; time += duration) {
+      slotCount++;
       const slotStartTime = this.minutesToTime(time);
       const slotEndTime = this.minutesToTime(time + duration);
+      
+      console.log(`🔍 Generating slot ${slotCount}: ${slotStartTime} - ${slotEndTime} (time: ${time})`);
 
       // Check if doctor is available at this time
       let isAvailable = true;
@@ -552,11 +647,17 @@ export class AppointmentsService {
 
       // Check for existing appointments
       if (isAvailable) {
+        // Create separate date objects to avoid mutation
+        const startOfDay = new Date(appointmentDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(appointmentDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        
         const existingAppointment = await this.appointmentModel.findOne({
           branchId: new Types.ObjectId(branchId),
           appointmentDate: {
-            $gte: new Date(appointmentDate.setHours(0, 0, 0, 0)),
-            $lt: new Date(appointmentDate.setHours(23, 59, 59, 999))
+            $gte: startOfDay,
+            $lt: endOfDay
           },
           startTime: slotStartTime,
           status: { $in: [AppointmentStatus.SCHEDULED, AppointmentStatus.IN_PROGRESS] },
@@ -575,7 +676,13 @@ export class AppointmentsService {
         doctorId,
         doctorName
       });
+      
+      console.log(`🔍 Slot ${slotCount} added:`, { startTime: slotStartTime, endTime: slotEndTime, isAvailable });
     }
+    
+    console.log(`🔍 Total slots generated: ${slots.length}`);
+    console.log(`🔍 Available slots: ${slots.filter(s => s.isAvailable).length}`);
+    console.log(`🔍 Returning slots:`, slots);
 
     return slots;
   }
@@ -589,7 +696,8 @@ export class AppointmentsService {
     endTime: string,
     patientId: string,
     excludeAppointmentId?: string,
-    isWalkIn?: boolean
+    isWalkIn?: boolean,
+    isReschedule?: boolean
   ): Promise<SlotValidationResult> {
     try {
       console.log('🔍 validateSlotAvailability called with:', {
@@ -600,13 +708,16 @@ export class AppointmentsService {
         startTime,
         endTime,
         patientId,
-        excludeAppointmentId
+        excludeAppointmentId,
+        isWalkIn,
+        isReschedule
       });
 
       const conflicts: string[] = [];
 
-      // Check if the appointment is in the future (skip for walk-in appointments)
-      if (!isWalkIn) {
+      // Check if the appointment is in the future (skip for walk-in appointments and reschedules)
+      console.log('🔍 Time validation check:', { isWalkIn, isReschedule, shouldSkip: isWalkIn || isReschedule });
+      if (!isWalkIn && !isReschedule) {
         const now = new Date();
         const appointmentDateTime = new Date(appointmentDate);
         const [hours, minutes] = startTime.split(':').map(Number);
@@ -623,6 +734,8 @@ export class AppointmentsService {
             bufferTime: bufferTime.toISOString()
           });
         }
+      } else if (isReschedule) {
+        console.log('🔄 Skipping past time validation for reschedule operation');
       } else {
         console.log('🚶‍♂️ Skipping past time validation for walk-in appointment');
         
@@ -715,22 +828,27 @@ export class AppointmentsService {
         conflicts.push('Doctor already has an appointment at this time');
       }
 
-      // Check doctor's working hours
+      // Check doctor's working hours (skip if doctor is currently active in branch)
       const doctor = await this.doctorModel.findById(doctorId).exec();
       if (doctor) {
-        const dayOfWeek = appointmentDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-        const doctorAvailability = doctor.availability[dayOfWeek];
-        
-        if (!doctorAvailability || !doctorAvailability.isAvailable) {
-          conflicts.push('Doctor is not available on this day');
+        // If doctor is currently active in the branch, bypass working hours validation
+        if (doctor.isCurrentlyActiveInBranch) {
+          console.log('🔍 Doctor is currently active in branch, bypassing working hours validation');
         } else {
-          const doctorStart = this.timeToMinutes(doctorAvailability.start);
-          const doctorEnd = this.timeToMinutes(doctorAvailability.end);
-          const slotStart = this.timeToMinutes(startTime);
-          const slotEnd = this.timeToMinutes(endTime);
+          const dayOfWeek = appointmentDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+          const doctorAvailability = doctor.availability[dayOfWeek];
           
-          if (slotStart < doctorStart || slotEnd > doctorEnd) {
-            conflicts.push('Appointment time is outside doctor\'s working hours');
+          if (!doctorAvailability || !doctorAvailability.isAvailable) {
+            conflicts.push('Doctor is not available on this day');
+          } else {
+            const doctorStart = this.timeToMinutes(doctorAvailability.start);
+            const doctorEnd = this.timeToMinutes(doctorAvailability.end);
+            const slotStart = this.timeToMinutes(startTime);
+            const slotEnd = this.timeToMinutes(endTime);
+            
+            if (slotStart < doctorStart || slotEnd > doctorEnd) {
+              conflicts.push('Appointment time is outside doctor\'s working hours');
+            }
           }
         }
       }

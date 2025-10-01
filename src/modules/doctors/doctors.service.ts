@@ -363,4 +363,184 @@ export class DoctorsService {
     console.log('Doctor restored successfully:', restoredDoctor?._id);
     return restoredDoctor!;
   }
+
+  async setDoctorActiveInBranch(
+    doctorId: string,
+    branchId: string,
+    userRole: string,
+    userOrganizationId?: string,
+    userBranchId?: string
+  ): Promise<Doctor> {
+    console.log('DoctorsService.setDoctorActiveInBranch called:', { doctorId, branchId, userRole });
+
+    const doctor = await this.doctorModel.findById(doctorId).exec();
+    if (!doctor) {
+      throw new NotFoundException('Doctor not found');
+    }
+
+    // Check permissions
+    if (userRole === 'super_admin') {
+      // Super admin can set any doctor active
+    } else if (userRole === 'organization_admin' && userOrganizationId) {
+      if (doctor.organizationId.toString() !== userOrganizationId) {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+    } else if (userRole === 'branch_admin' && userBranchId) {
+      if (doctor.branchId.toString() !== userBranchId) {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+    } else if (userRole === 'receptionist' && userBranchId) {
+      if (doctor.branchId.toString() !== userBranchId) {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+    } else if (userRole === 'doctor') {
+      if ((doctor as any)._id.toString() !== doctorId) {
+        throw new ForbiddenException('Doctor can only set their own active status');
+      }
+    } else {
+      throw new ForbiddenException('Insufficient permissions');
+    }
+
+    // Verify doctor belongs to the branch
+    if (doctor.branchId.toString() !== branchId) {
+      throw new ForbiddenException('Doctor does not belong to this branch');
+    }
+
+    const updatedDoctor = await this.doctorModel
+      .findByIdAndUpdate(
+        doctorId,
+        {
+          isCurrentlyActiveInBranch: true,
+          branchActiveStartTime: new Date()
+        },
+        { new: true }
+      )
+      .select('-password')
+      .exec();
+
+    console.log('Doctor set as active in branch:', updatedDoctor?._id);
+    return updatedDoctor!;
+  }
+
+  async setDoctorInactiveInBranch(
+    doctorId: string,
+    branchId: string,
+    userRole: string,
+    userOrganizationId?: string,
+    userBranchId?: string
+  ): Promise<Doctor> {
+    console.log('DoctorsService.setDoctorInactiveInBranch called:', { doctorId, branchId, userRole });
+
+    const doctor = await this.doctorModel.findById(doctorId).exec();
+    if (!doctor) {
+      throw new NotFoundException('Doctor not found');
+    }
+
+    // Check permissions (same as setDoctorActiveInBranch)
+    if (userRole === 'super_admin') {
+      // Super admin can set any doctor inactive
+    } else if (userRole === 'organization_admin' && userOrganizationId) {
+      if (doctor.organizationId.toString() !== userOrganizationId) {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+    } else if (userRole === 'branch_admin' && userBranchId) {
+      if (doctor.branchId.toString() !== userBranchId) {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+    } else if (userRole === 'receptionist' && userBranchId) {
+      if (doctor.branchId.toString() !== userBranchId) {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+    } else if (userRole === 'doctor') {
+      if ((doctor as any)._id.toString() !== doctorId) {
+        throw new ForbiddenException('Doctor can only set their own active status');
+      }
+    } else {
+      throw new ForbiddenException('Insufficient permissions');
+    }
+
+    const updatedDoctor = await this.doctorModel
+      .findByIdAndUpdate(
+        doctorId,
+        {
+          isCurrentlyActiveInBranch: false,
+          branchActiveStartTime: undefined
+        },
+        { new: true }
+      )
+      .select('-password')
+      .exec();
+
+    console.log('Doctor set as inactive in branch:', updatedDoctor?._id);
+    return updatedDoctor!;
+  }
+
+  async getActiveDoctorsInBranch(
+    branchId: string,
+    userRole: string,
+    userOrganizationId?: string,
+    userBranchId?: string
+  ): Promise<Doctor[]> {
+    console.log('DoctorsService.getActiveDoctorsInBranch called:', { branchId, userRole });
+
+    // Check permissions
+    if (userRole === 'super_admin') {
+      // Super admin can view active doctors in any branch
+    } else if (userRole === 'organization_admin' && userOrganizationId) {
+      // Organization admin can view active doctors in their organization's branches
+    } else if ((userRole === 'branch_admin' || userRole === 'receptionist') && userBranchId === branchId) {
+      // Branch admin and receptionist can view active doctors in their branch
+    } else {
+      throw new ForbiddenException('Insufficient permissions');
+    }
+
+    const activeDoctors = await this.doctorModel
+      .find({
+        branchId: new Types.ObjectId(branchId),
+        isCurrentlyActiveInBranch: true,
+        isDeleted: { $ne: true }
+      })
+      .select('-password')
+      .exec();
+
+    console.log('Active doctors found:', activeDoctors.length);
+    return activeDoctors;
+  }
+
+  async deactivateAllDoctorsInBranch(
+    branchId: string,
+    userRole: string,
+    userOrganizationId?: string,
+    userBranchId?: string
+  ): Promise<{ deactivatedCount: number }> {
+    console.log('DoctorsService.deactivateAllDoctorsInBranch called:', { branchId, userRole });
+
+    // Check permissions
+    if (userRole === 'super_admin') {
+      // Super admin can deactivate doctors in any branch
+    } else if (userRole === 'organization_admin' && userOrganizationId) {
+      // Organization admin can deactivate doctors in their organization's branches
+    } else if ((userRole === 'branch_admin' || userRole === 'receptionist') && userBranchId === branchId) {
+      // Branch admin and receptionist can deactivate doctors in their branch
+    } else {
+      throw new ForbiddenException('Insufficient permissions');
+    }
+
+    const result = await this.doctorModel
+      .updateMany(
+        {
+          branchId: new Types.ObjectId(branchId),
+          isCurrentlyActiveInBranch: true,
+          isDeleted: { $ne: true }
+        },
+        {
+          isCurrentlyActiveInBranch: false,
+          branchActiveStartTime: undefined
+        }
+      )
+      .exec();
+
+    console.log('Deactivated doctors count:', result.modifiedCount);
+    return { deactivatedCount: result.modifiedCount };
+  }
 }

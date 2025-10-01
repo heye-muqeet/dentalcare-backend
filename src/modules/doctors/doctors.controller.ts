@@ -170,4 +170,111 @@ export class DoctorsController {
       data: doctor
     };
   }
+
+  @Post(':id/set-active-in-branch/:branchId')
+  async setDoctorActiveInBranch(
+    @Param('id') doctorId: string,
+    @Param('branchId') branchId: string,
+    @Request() req: any
+  ) {
+    console.log('DoctorsController.setDoctorActiveInBranch called:', { doctorId, branchId });
+
+    const user = req.user;
+    const organizationId = typeof user.organizationId === 'string' 
+      ? user.organizationId 
+      : user.organizationId?._id || user.organizationId?.id;
+
+    const doctor = await this.doctorsService.setDoctorActiveInBranch(
+      doctorId,
+      branchId,
+      user.role,
+      organizationId,
+      user.branchId
+    );
+
+    return {
+      success: true,
+      message: 'Doctor set as active in branch successfully',
+      data: doctor
+    };
+  }
+
+  @Post(':id/set-inactive-in-branch/:branchId')
+  async setDoctorInactiveInBranch(
+    @Param('id') doctorId: string,
+    @Param('branchId') branchId: string,
+    @Request() req: any
+  ) {
+    console.log('DoctorsController.setDoctorInactiveInBranch called:', { doctorId, branchId });
+
+    const user = req.user;
+    const organizationId = typeof user.organizationId === 'string' 
+      ? user.organizationId 
+      : user.organizationId?._id || user.organizationId?.id;
+
+    const doctor = await this.doctorsService.setDoctorInactiveInBranch(
+      doctorId,
+      branchId,
+      user.role,
+      organizationId,
+      user.branchId
+    );
+
+    return {
+      success: true,
+      message: 'Doctor set as inactive in branch successfully',
+      data: doctor
+    };
+  }
+
+  @Get('branch/:branchId/active')
+  async getActiveDoctorsInBranch(
+    @Param('branchId') branchId: string,
+    @Request() req: any
+  ) {
+    console.log('DoctorsController.getActiveDoctorsInBranch called:', { branchId });
+
+    const user = req.user;
+    const organizationId = typeof user.organizationId === 'string' 
+      ? user.organizationId 
+      : user.organizationId?._id || user.organizationId?.id;
+
+    const activeDoctors = await this.doctorsService.getActiveDoctorsInBranch(
+      branchId,
+      user.role,
+      organizationId,
+      user.branchId
+    );
+
+    return {
+      success: true,
+      data: activeDoctors
+    };
+  }
+
+  @Post('branch/:branchId/deactivate-all')
+  async deactivateAllDoctorsInBranch(
+    @Param('branchId') branchId: string,
+    @Request() req: any
+  ) {
+    console.log('DoctorsController.deactivateAllDoctorsInBranch called:', { branchId });
+
+    const user = req.user;
+    const organizationId = typeof user.organizationId === 'string' 
+      ? user.organizationId 
+      : user.organizationId?._id || user.organizationId?.id;
+
+    const result = await this.doctorsService.deactivateAllDoctorsInBranch(
+      branchId,
+      user.role,
+      organizationId,
+      user.branchId
+    );
+
+    return {
+      success: true,
+      message: `${result.deactivatedCount} doctor(s) deactivated successfully`,
+      data: result
+    };
+  }
 }

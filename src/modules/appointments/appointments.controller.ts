@@ -79,7 +79,7 @@ export class AppointmentsController {
     @Request() req: any,
     @Query('date') date: string,
     @Query('doctorId') doctorId?: string,
-    @Query('duration') duration?: number,
+    @Query('duration') duration?: string,
   ) {
     const { branchId, organizationId } = req.user;
     
@@ -87,12 +87,15 @@ export class AppointmentsController {
       throw new Error('Date parameter is required');
     }
 
+    // Convert duration string to number
+    const durationInMinutes = duration ? parseInt(duration, 10) : 30;
+
     return this.appointmentsService.getAvailableSlots(
       branchId,
       organizationId,
       date,
       doctorId,
-      duration || 30
+      durationInMinutes
     );
   }
 
@@ -193,6 +196,7 @@ export class AppointmentsController {
       patientId: string;
       excludeAppointmentId?: string;
       isWalkIn?: boolean;
+      isReschedule?: boolean;
     },
     @Request() req: any
   ) {
@@ -207,7 +211,8 @@ export class AppointmentsController {
       body.endTime,
       body.patientId,
       body.excludeAppointmentId,
-      body.isWalkIn
+      body.isWalkIn,
+      body.isReschedule
     );
   }
 

@@ -39,6 +39,12 @@ export class Doctor extends SoftDeleteMixin {
   @Prop({ default: true })
   isActive: boolean;
 
+  @Prop({ default: false })
+  isCurrentlyActiveInBranch: boolean;
+
+  @Prop()
+  branchActiveStartTime?: Date;
+
   @Prop()
   lastLoginAt?: Date;
 
